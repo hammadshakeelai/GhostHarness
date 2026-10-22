@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 </head>
 <body>
-  <!-- Header with Hardware Telemetry -->
+  <!-- Header with Hardware Telemetry and Actions -->
   <header>
     <div class="brand">
       <span class="brand-badge">SOVEREIGN</span>
@@ -19,6 +19,18 @@
     </div>
 
     <div class="telemetry-bar">
+      <!-- Model Selector -->
+      <select id="model-select" onchange="onModelChange(this)" style="background: var(--bg-card); color: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; font-size: 0.8rem; outline: none;">
+        <option value="auto">⚡ Auto (7B / 14B Router)</option>
+        <option value="qwen2.5-coder-7b-instruct">⚡ Force 7B (100% 6GB VRAM)</option>
+        <option value="qwen2.5-coder-14b-instruct">🧠 Force 14B (Hybrid VRAM+RAM)</option>
+      </select>
+
+      <!-- Undo Button -->
+      <button onclick="triggerUndo()" style="background: #232c42; border: 1px solid var(--border); color: #cbd5e1; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; cursor: pointer;" title="Undo latest code edit">
+        ↺ Undo
+      </button>
+
       <!-- VRAM Gauge -->
       <div class="gauge-pill" title="Discrete GPU Dedicated VRAM (Zero Spill Guard)">
         <span>VRAM</span>
@@ -37,8 +49,8 @@
         <span id="ram-text">-- / 32.0 GB</span>
       </div>
 
-      <div id="headroom-status" style="font-size: 0.8rem; color: var(--text-muted); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-        Zero Spill Guard Active
+      <div id="headroom-status" style="font-size: 0.8rem; color: var(--text-muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+        Zero Spill Active
       </div>
     </div>
   </header>
@@ -53,11 +65,14 @@
           Connected to local abliterated Qwen model harness. Dynamic routing active:<br>
           • <b>Fast Tier (7B):</b> 100% in 6GB VRAM for blazing instant edits and terminal commands.<br>
           • <b>Heavy Tier (14B/32B):</b> Split GPU+RAM offload for deep reasoning.<br>
-          Zero administrator privileges required. Enter your prompt below to start building.
+          Zero administrator privileges required. Enter your prompt or click <b>🎤 Voice</b> below to start.
         </div>
       </div>
 
       <div class="input-area">
+        <button id="mic-btn" onclick="toggleDictation()" style="background: var(--bg-card); border: 1px solid var(--border); color: #fff; padding: 0 14px; border-radius: 8px; cursor: pointer; font-size: 0.85rem;" title="Toggle Speech-to-Text Dictation">
+          🎤 Voice
+        </button>
         <textarea id="prompt-input" class="prompt-input" placeholder="Ask GhostHarness to edit code, research repos, or run tasks... (Enter to send)"></textarea>
         <button class="btn-send" onclick="sendMessage()">Run</button>
       </div>
@@ -66,7 +81,7 @@
     <!-- Workspace & Dynamic Components -->
     <div class="workspace-panel">
       <div class="workspace-tabs" id="workspace-tabs">
-        <!-- Dynamically injected plugins -->
+        <!-- Dynamically injected tabs -->
       </div>
       <div class="workspace-content" id="workspace-content">
         <!-- Tab content rendered by JS -->

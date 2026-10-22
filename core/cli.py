@@ -13,6 +13,8 @@ from core.agent import Agent
 from core.memory_manager import memory_manager
 from core.dynamic_router import model_router
 from core.engine import InferenceEngine
+from core.checkpoint import checkpoint_manager
+from core.repo_map import RepoMap
 
 console = Console()
 
@@ -55,17 +57,17 @@ async def run_tui():
     agent = Agent()
     engine = InferenceEngine()
 
-    # Backend verification
     health = await engine.check_health()
     if health["online"]:
-        console.print(f"[bold green]✔ Backend Connected:[/bold green] {health['endpoint']}")
-        console.print(f"  Available models: {', '.join(health['available_models'][:3])}")
+        console.print(f"[bold green]✔ Backend Connected:[/bold green] {health['endpoint']} ({health.get('backend', 'Backend')})")
+        if health.get("available_models"):
+            console.print(f"  Available models: {', '.join(health['available_models'][:3])}")
     else:
         console.print(f"[bold yellow]⚠ Backend Alert:[/bold yellow] {health['status']}")
-        console.print("  [dim]Tip: Start LM Studio or llama-server on port 1234[/dim]")
+        console.print("  [dim]Tip: Start LM Studio or llama-server on port 1234 or 8080[/dim]")
 
     display_telemetry()
-    console.print("\n[dim]Commands: /gui (launch visual dashboard), /vram (check memory), /model <name>, /exit[/dim]\n")
+    console.print("\n[dim]Commands: /gui (launch web workspace), /undo (revert last edit), /map (show AST tree), /vram, /model <name>, /exit[/dim]\n")
 
     while True:
         try:
@@ -81,8 +83,22 @@ async def run_tui():
                 display_telemetry()
                 continue
 
+            if prompt == "/undo":
+                res = checkpoint_manager.rollback_latest()
+                if res.get("success"):
+                    console.print(f"[bold green]✔ Restored snapshot:[/bold green] {res['description']}")
+                    console.print(f"  Files reverted: {', '.join(res['restored_files'])}")
+                else:
+                    console.print(f"[bold red]Undo failed:[/bold red] {res.get('error')}")
+                continue
+
+            if prompt == "/map":
+                rmap = RepoMap(root_dir=agent.workspace_root)
+                console.print(Panel(rmap.generate_map(), title="Semantic Codebase Symbol Map", border_style="cyan"))
+                continue
+
             if prompt == "/gui":
-                console.print("[bold green]Starting Visual Workspace Web GUI on http://127.0.0.1:8765...[/bold green]")
+                console.print(f"[bold green]Starting Visual Workspace Web GUI on http://127.0.0.1:{settings.web_port}...[/bold green]")
                 from web.server import start_server
                 start_server(port=settings.web_port)
                 continue

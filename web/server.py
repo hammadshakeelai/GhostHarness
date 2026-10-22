@@ -10,6 +10,9 @@ from core.config import settings
 from core.memory_manager import memory_manager
 from core.agent import Agent
 from core.engine import InferenceEngine
+from core.checkpoint import checkpoint_manager
+from core.dynamic_router import model_router
+from core.repo_map import RepoMap
 
 app = FastAPI(title="GhostHarness Visual Workspace")
 
@@ -23,12 +26,6 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 # Dynamic UI Plugin Registry (Extensible Dashboard)
 DYNAMIC_PLUGINS: List[Dict[str, Any]] = [
     {
-        "id": "vram_monitor",
-        "title": "GPU VRAM & Hardware",
-        "icon": "cpu",
-        "description": "Zero-spill 6GB VRAM budget guard & telemetry meter."
-    },
-    {
         "id": "diff_viewer",
         "title": "Code Diff Reviewer",
         "icon": "git-pull-request",
@@ -39,6 +36,18 @@ DYNAMIC_PLUGINS: List[Dict[str, Any]] = [
         "title": "Repo & AST Map",
         "icon": "folder-tree",
         "description": "Semantic codebase navigator and symbol browser."
+    },
+    {
+        "id": "vram_monitor",
+        "title": "Hardware Budget",
+        "icon": "cpu",
+        "description": "Zero-spill 6GB VRAM budget guard & telemetry meter."
+    },
+    {
+        "id": "checkpoints",
+        "title": "Checkpoints & Rollbacks",
+        "icon": "history",
+        "description": "Snapshot history with one-click undo capability."
     }
 ]
 
@@ -55,6 +64,9 @@ class DynamicPluginRegister(BaseModel):
     icon: str
     description: str
     html_template: str
+
+class ModelOverrideRequest(BaseModel):
+    model: str | None = None
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_index():
@@ -87,6 +99,29 @@ async def register_plugin(plugin: DynamicPluginRegister):
             return {"success": True, "message": f"Plugin '{plugin.title}' updated"}
     DYNAMIC_PLUGINS.append(plugin.dict())
     return {"success": True, "message": f"Plugin '{plugin.title}' registered"}
+
+@app.get("/api/repomap")
+async def get_repo_map():
+    """Returns AST symbol outline of the codebase."""
+    rmap = RepoMap(root_dir=agent_instance.workspace_root)
+    return {"map": rmap.generate_map()}
+
+@app.get("/api/checkpoints")
+async def get_checkpoints():
+    """Returns list of snapshot checkpoints."""
+    return {"checkpoints": checkpoint_manager.list_checkpoints()}
+
+@app.post("/api/undo")
+async def trigger_undo():
+    """Rolls back the latest code modification checkpoint."""
+    res = checkpoint_manager.rollback_latest()
+    return res
+
+@app.post("/api/model/override")
+async def set_model_override(req: ModelOverrideRequest):
+    """Set manual model override (7B, 14B, or None for auto)."""
+    model_router.set_override(req.model)
+    return {"success": True, "active_override": req.model}
 
 @app.post("/api/chat")
 async def chat_stream(req: ChatRequest):

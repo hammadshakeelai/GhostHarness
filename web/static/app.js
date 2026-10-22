@@ -1,5 +1,56 @@
 let activeTab = 'diff_viewer';
 let currentDiff = null;
+let isRecording = false;
+let recognition = null;
+
+// Initialize Web Speech Dictation if supported by browser
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRec();
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    const input = document.getElementById('prompt-input');
+    if (input) {
+      input.value = (input.value ? input.value + ' ' : '') + transcript;
+    }
+  };
+
+  recognition.onend = () => {
+    isRecording = false;
+    updateMicButtonUI();
+  };
+}
+
+function toggleDictation() {
+  if (!recognition) {
+    alert("Speech recognition is not supported in this browser. Please use Chrome/Edge or type directly.");
+    return;
+  }
+  if (isRecording) {
+    recognition.stop();
+    isRecording = false;
+  } else {
+    recognition.start();
+    isRecording = true;
+  }
+  updateMicButtonUI();
+}
+
+function updateMicButtonUI() {
+  const btn = document.getElementById('mic-btn');
+  if (btn) {
+    if (isRecording) {
+      btn.style.backgroundColor = 'var(--danger)';
+      btn.innerText = '● Listening...';
+    } else {
+      btn.style.backgroundColor = 'var(--bg-card)';
+      btn.innerText = '🎤 Voice';
+    }
+  }
+}
 
 // Telemetry Polling (every 2.5 seconds)
 async function updateTelemetry() {
@@ -51,7 +102,7 @@ async function checkBackend() {
     const badge = document.getElementById('backend-status');
     if (badge) {
       if (data.online) {
-        badge.innerText = `● Connected (${data.available_models.length} models)`;
+        badge.innerText = `● ${data.backend || 'Backend'} (${data.available_models.length} models)`;
         badge.style.color = 'var(--success)';
       } else {
         badge.innerText = `○ Backend Offline`;
@@ -61,6 +112,33 @@ async function checkBackend() {
   } catch (e) {
     console.warn('Backend check failed:', e);
   }
+}
+
+// Trigger Undo Checkpoint
+async function triggerUndo() {
+  try {
+    const res = await fetch('/api/undo', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      alert(`Reverted checkpoint: ${data.description}\nRestored: ${data.restored_files.join(', ') || 'No files modified'}`);
+      currentDiff = null;
+      loadPlugins();
+    } else {
+      alert(data.error || 'No checkpoints to undo.');
+    }
+  } catch (e) {
+    alert(`Undo failed: ${e.message}`);
+  }
+}
+
+// Change Model Selection
+async function onModelChange(sel) {
+  const val = sel.value === 'auto' ? null : sel.value;
+  await fetch('/api/model/override', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: val })
+  });
 }
 
 // Fetch Dynamic Tabs
@@ -83,12 +161,15 @@ async function loadPlugins() {
       };
       tabsContainer.appendChild(btn);
     });
+
+    const curr = plugins.find(p => p.id === activeTab) || plugins[0];
+    if (curr) renderTabContent(curr);
   } catch (e) {
     console.error('Failed loading plugins:', e);
   }
 }
 
-function renderTabContent(plugin) {
+async function renderTabContent(plugin) {
   const container = document.getElementById('workspace-content');
   if (plugin.id === 'diff_viewer') {
     if (!currentDiff) {
@@ -101,6 +182,32 @@ function renderTabContent(plugin) {
     } else {
       renderDiffCard(currentDiff);
     }
+  } else if (plugin.id === 'repo_explorer') {
+    container.innerHTML = `<div style="color: var(--text-muted);">Generating semantic symbol tree...</div>`;
+    const res = await fetch('/api/repomap');
+    const data = await res.json();
+    container.innerHTML = `
+      <div style="background: var(--bg-card); padding: 18px; border-radius: 8px; border: 1px solid var(--border); font-family: var(--mono-font); font-size: 0.85rem; white-space: pre-wrap;">
+        <h4 style="color: var(--accent); margin-bottom: 12px;">Semantic Codebase AST Map (Aider-Style Token Budgeted)</h4>
+        ${escapeHtml(data.map)}
+      </div>
+    `;
+  } else if (plugin.id === 'checkpoints') {
+    const res = await fetch('/api/checkpoints');
+    const data = await res.json();
+    let html = `<div style="background: var(--bg-card); padding: 20px; border-radius: 8px; border: 1px solid var(--border);">
+      <h3>Atomic Modification Checkpoints</h3>
+      <p style="color: var(--text-muted); margin: 6px 0 16px 0;">Snapshots taken before each tool mutation:</p>
+      <ul style="line-height: 2; list-style-position: inside;">`;
+    if (!data.checkpoints || data.checkpoints.length === 0) {
+      html += `<li>No snapshots yet recorded.</li>`;
+    } else {
+      data.checkpoints.forEach(c => {
+        html += `<li><b>[${c.time}]</b> ${escapeHtml(c.description)} (${c.files.join(', ') || 'No files'})</li>`;
+      });
+    }
+    html += `</ul><button onclick="triggerUndo()" style="margin-top: 14px; background: var(--accent); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">Rollback Most Recent</button></div>`;
+    container.innerHTML = html;
   } else if (plugin.id === 'vram_monitor') {
     container.innerHTML = `
       <div style="background: var(--bg-card); padding: 24px; border-radius: 12px; border: 1px solid var(--border);">
@@ -124,7 +231,7 @@ function renderTabContent(plugin) {
 function renderDiffCard(diffText) {
   const container = document.getElementById('workspace-content');
   const lines = diffText.split('\n');
-  let html = `<div class="diff-card"><div class="diff-header"><span>Surgical Code Patch</span><span style="color: var(--accent);">Pending Approval</span></div>`;
+  let html = `<div class="diff-card"><div class="diff-header"><span>Surgical Code Patch</span><span style="color: var(--accent);">Modified File</span></div>`;
   lines.forEach(l => {
     let cls = '';
     if (l.startsWith('+') && !l.startsWith('+++')) cls = 'diff-add';
@@ -223,14 +330,12 @@ function handleAgentEvent(evt, card) {
       currentDiff = evt.result.diff;
       activeTab = 'diff_viewer';
       loadPlugins();
-      renderDiffCard(currentDiff);
     }
   }
   const list = document.getElementById('message-list');
   list.scrollTop = list.scrollHeight;
 }
 
-// Initialize on page load
 window.addEventListener('DOMContentLoaded', () => {
   updateTelemetry();
   setInterval(updateTelemetry, 2500);

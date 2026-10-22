@@ -4,13 +4,16 @@ from core.config import settings
 from core.engine import InferenceEngine
 from core.dynamic_router import model_router
 from core.memory_manager import memory_manager
+from core.repo_map import RepoMap
+from core.checkpoint import checkpoint_manager
+from core.multimodal import multimodal_sidecar
 from tools.base import Tool
 from tools.filesystem import read_file, write_file, edit_file, list_directory
 from tools.terminal import run_terminal
 from tools.search import grep_search, find_files
 from tools.researcher import analyze_repo_structure, fetch_web_doc
 
-SYSTEM_PROMPT = """You are GhostHarness, an elite, sovereign autonomous coding agent running locally.
+BASE_SYSTEM_PROMPT = """You are GhostHarness, an elite sovereign autonomous coding agent running locally.
 You are powered by an abliterated Qwen model with zero refusals and direct access to system tools.
 You are executing on a computer with constrained 6GB VRAM + 32GB RAM.
 
@@ -26,14 +29,20 @@ class Agent:
     def __init__(self, workspace_root: Optional[str] = None):
         self.workspace_root = workspace_root or settings.agent.workspace_root
         self.engine = InferenceEngine()
+        self.repo_map = RepoMap(root_dir=self.workspace_root)
         self.tools: Dict[str, Tool] = self._register_tools()
-        self.history: List[Dict[str, Any]] = [
-            {"role": "system", "content": SYSTEM_PROMPT}
-        ]
+        self.history: List[Dict[str, Any]] = []
+        self._init_history()
+
+    def _init_history(self):
+        # Generate initial semantic repo map
+        rmap = self.repo_map.generate_map()
+        sys_content = f"{BASE_SYSTEM_PROMPT}\n\n{rmap}"
+        self.history = [{"role": "system", "content": sys_content}]
 
     def _register_tools(self) -> Dict[str, Tool]:
         root = self.workspace_root
-        return {
+        tools = {
             "read_file": Tool(
                 name="read_file",
                 description="Read lines or full content of a file.",
@@ -63,12 +72,12 @@ class Agent:
             ),
             "edit_file": Tool(
                 name="edit_file",
-                description="Surgically replace an exact target block with replacement text in a file.",
+                description="Surgically replace a target block with replacement text with fuzzy-matching fallback.",
                 parameters={
                     "type": "object",
                     "properties": {
                         "path": {"type": "string", "description": "Relative file path"},
-                        "target": {"type": "string", "description": "Exact text to find and replace"},
+                        "target": {"type": "string", "description": "Exact or near-exact text to replace"},
                         "replacement": {"type": "string", "description": "New replacement text"}
                     },
                     "required": ["path", "target", "replacement"]
@@ -147,8 +156,31 @@ class Agent:
                     "required": ["url"]
                 },
                 func=lambda url: fetch_web_doc(url)
+            ),
+            "rollback_checkpoint": Tool(
+                name="rollback_checkpoint",
+                description="Revert the most recent file modification checkpoint (undo changes).",
+                parameters={
+                    "type": "object",
+                    "properties": {}
+                },
+                func=lambda: checkpoint_manager.rollback_latest()
+            ),
+            "inspect_image": Tool(
+                name="inspect_image",
+                description="Analyze a local image or screenshot via vision model.",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "image_path": {"type": "string", "description": "Path to PNG/JPG image"},
+                        "question": {"type": "string", "description": "Question or instruction for vision model"}
+                    },
+                    "required": ["image_path"]
+                },
+                func=lambda image_path, question="Analyze this image": multimodal_sidecar.inspect_image(image_path, question)
             )
         }
+        return tools
 
     def get_tool_schemas(self) -> List[Dict[str, Any]]:
         return [tool.to_openai_dict() for tool in self.tools.values()]
@@ -158,13 +190,34 @@ class Agent:
             return {"success": False, "error": f"Tool '{name}' not found."}
         return await self.tools[name].execute(**arguments)
 
+    def compact_history_if_needed(self):
+        """Compacts conversation history when token estimate exceeds 70% of context window."""
+        total_chars = sum(len(str(m.get("content", ""))) for m in self.history)
+        # Approximate 1 token ~= 4 chars (8192 tokens ~= 32000 chars)
+        if total_chars > 24000 and len(self.history) > 6:
+            # Preserve system prompt and latest 4 messages; compact middle turns
+            system_msg = self.history[0]
+            recent_turns = self.history[-4:]
+            compacted_summary = {
+                "role": "user",
+                "content": "[Context Compacted: Earlier steps executed file edits and research successfully. Continuing task.]"
+            }
+            self.history = [system_msg, compacted_summary] + recent_turns
+
     async def process_user_turn(self, user_prompt: str) -> AsyncGenerator[Dict[str, Any], None]:
-        """Main agentic loop: Dynamic Routing -> Stream -> Tool Executions -> Loop."""
-        # 1. Hardware check
+        """Main agentic loop: Telemetry -> Dynamic Routing -> Stream -> Tool Calls -> Compaction."""
+        # Check for undo command
+        if user_prompt.strip().lower() in ["/undo", "undo"]:
+            undo_res = checkpoint_manager.rollback_latest()
+            yield {"type": "token", "content": f"Rollback status: {json.dumps(undo_res, indent=2)}"}
+            yield {"type": "done", "iterations": 1}
+            return
+
+        self.compact_history_if_needed()
+
         telemetry = memory_manager.get_hardware_telemetry()
         yield {"type": "telemetry", "data": telemetry}
 
-        # 2. Dynamic model routing
         route_decision = model_router.select_model(user_prompt, self.history)
         yield {
             "type": "routing",
@@ -210,7 +263,6 @@ class Agent:
                             if "arguments" in tc["function"] and tc["function"]["arguments"]:
                                 accumulated_tool_calls[idx]["function"]["arguments"] += tc["function"]["arguments"]
 
-            # Save assistant message to history
             asst_msg: Dict[str, Any] = {"role": "assistant"}
             if accumulated_content:
                 asst_msg["content"] = accumulated_content
@@ -218,11 +270,9 @@ class Agent:
                 asst_msg["tool_calls"] = list(accumulated_tool_calls.values())
             self.history.append(asst_msg)
 
-            # If no tool calls were made, the turn is complete!
             if not accumulated_tool_calls:
                 break
 
-            # Process tool calls
             for idx, tc in accumulated_tool_calls.items():
                 fn_name = tc["function"]["name"]
                 raw_args = tc["function"]["arguments"]
@@ -238,7 +288,6 @@ class Agent:
                     "arguments": args
                 }
 
-                # Execute tool
                 result = await self.execute_tool(fn_name, args)
 
                 yield {

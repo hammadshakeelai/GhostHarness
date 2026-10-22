@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.ghost_checkpoints/
+wheels/
+models/
+datasets/*.jsonl
+merged_model/
+lora_adapter/
+.DS_Store

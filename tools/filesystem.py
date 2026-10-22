@@ -1,7 +1,8 @@
 import os
 import difflib
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
+from core.checkpoint import checkpoint_manager
 
 def _resolve_safe_path(rel_or_abs: str, root: str) -> Path:
     target = Path(rel_or_abs)
@@ -36,34 +37,78 @@ async def read_file(path: str, start_line: Optional[int] = None, end_line: Optio
         return {"success": False, "error": str(e)}
 
 async def write_file(path: str, content: str, root: str = ".") -> Dict[str, Any]:
-    """Write or overwrite content to a file."""
+    """Write or overwrite content to a file with automatic checkpointing."""
     try:
         p = _resolve_safe_path(path, root)
+        rel_str = str(p.relative_to(Path(root).resolve())) if Path(root).resolve() in p.parents else path
+
+        # Create checkpoint if file exists
+        if p.is_file():
+            checkpoint_manager.create_checkpoint(f"Before write to {rel_str}", [rel_str])
+
         p.parent.mkdir(parents=True, exist_ok=True)
         with open(p, "w", encoding="utf-8") as f:
             f.write(content)
+
         return {"success": True, "path": str(p), "bytes_written": len(content)}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
 async def edit_file(path: str, target: str, replacement: str, root: str = ".") -> Dict[str, Any]:
-    """Perform surgical replacement in a file and generate a unified diff preview."""
+    """
+    Surgical file editing with fuzzy matching fallback.
+    If exact string match fails due to minor whitespace or indentation discrepancies
+    from the 7B model, fuzzy locator locates the closest matching block.
+    """
     try:
         p = _resolve_safe_path(path, root)
         if not p.is_file():
             return {"success": False, "error": f"File not found: {path}"}
 
+        rel_str = str(p.relative_to(Path(root).resolve())) if Path(root).resolve() in p.parents else path
+
         with open(p, "r", encoding="utf-8") as f:
             original = f.read()
 
-        if target not in original:
+        match_found = False
+        updated = original
+
+        # 1. Exact match attempt
+        if target in original:
+            match_found = True
+            updated = original.replace(target, replacement, 1)
+        else:
+            # 2. Indentation-normalized search
+            target_lines = [line.strip() for line in target.strip().splitlines() if line.strip()]
+            orig_lines = original.splitlines(keepends=True)
+            orig_stripped = [line.strip() for line in orig_lines]
+
+            # Slide window to find candidate block
+            win_size = len(target_lines)
+            best_ratio = 0.0
+            best_idx = -1
+
+            for i in range(len(orig_lines) - win_size + 1):
+                window = [orig_stripped[j] for j in range(i, i + win_size) if orig_stripped[j]]
+                ratio = difflib.SequenceMatcher(None, target_lines, window).ratio()
+                if ratio > best_ratio:
+                    best_ratio = ratio
+                    best_idx = i
+
+            # If similarity is >= 85%, accept fuzzy match
+            if best_ratio >= 0.85 and best_idx != -1:
+                match_found = True
+                matched_block = "".join(orig_lines[best_idx : best_idx + win_size])
+                updated = original.replace(matched_block, replacement, 1)
+
+        if not match_found:
             return {
                 "success": False,
-                "error": "Target block not found in file. Ensure exact matching whitespace and indentation."
+                "error": "Target block not found in file (neither exact nor fuzzy match above 85% similarity)."
             }
 
-        count = original.count(target)
-        updated = original.replace(target, replacement, 1)
+        # Create checkpoint before committing modification
+        checkpoint_manager.create_checkpoint(f"Before edit_file on {rel_str}", [rel_str])
 
         diff = list(difflib.unified_diff(
             original.splitlines(keepends=True),
@@ -80,9 +125,8 @@ async def edit_file(path: str, target: str, replacement: str, root: str = ".") -
         return {
             "success": True,
             "path": str(p),
-            "occurrences_found": count,
             "diff": diff_text,
-            "message": f"Successfully replaced target block ({len(diff)} diff lines generated)."
+            "message": f"Successfully applied edit ({len(diff)} diff lines generated)."
         }
     except Exception as e:
         return {"success": False, "error": str(e)}
@@ -96,7 +140,7 @@ async def list_directory(path: str = ".", root: str = ".") -> Dict[str, Any]:
 
         entries = []
         for item in sorted(p.iterdir()):
-            if item.name.startswith(".git") or item.name == "__pycache__":
+            if item.name.startswith(".git") or item.name in {"__pycache__", ".ghost_checkpoints"}:
                 continue
             is_dir = item.is_dir()
             size = item.stat().st_size if not is_dir else 0
