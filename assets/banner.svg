@@ -1,0 +1,170 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 440" width="100%" height="100%" style="background:#070a13; border-radius:12px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'JetBrains Mono',monospace;">
+  <defs>
+    <!-- Background Gradients -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#080c18" />
+      <stop offset="50%" stop-color="#0e1428" />
+      <stop offset="100%" stop-color="#050811" />
+    </linearGradient>
+
+    <!-- Ambient Glow Spheres -->
+    <radialGradient id="glowIndigo" cx="20%" cy="30%" r="50%">
+      <stop offset="0%" stop-color="#6366f1" stop-opacity="0.32" />
+      <stop offset="100%" stop-color="#6366f1" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="glowCyan" cx="85%" cy="40%" r="50%">
+      <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="#06b6d4" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="glowPurple" cx="50%" cy="90%" r="45%">
+      <stop offset="0%" stop-color="#a855f7" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#a855f7" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Text & Accent Gradients -->
+    <linearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="50%" stop-color="#e0e7ff" />
+      <stop offset="100%" stop-color="#818cf8" />
+    </linearGradient>
+    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#22d3ee" />
+      <stop offset="100%" stop-color="#818cf8" />
+    </linearGradient>
+    <linearGradient id="badgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4f46e5" />
+      <stop offset="100%" stop-color="#9333ea" />
+    </linearGradient>
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#151d33" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="#0c1120" stop-opacity="0.9" />
+    </linearGradient>
+
+    <!-- Subtle Grid Pattern -->
+    <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+      <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#1e293b" stroke-width="0.7" stroke-opacity="0.4" />
+    </pattern>
+  </defs>
+
+  <!-- Background Layer -->
+  <rect width="1200" height="440" fill="url(#bgGrad)" />
+  <rect width="1200" height="440" fill="url(#grid)" />
+  <rect width="1200" height="440" fill="url(#glowIndigo)" />
+  <rect width="1200" height="440" fill="url(#glowCyan)" />
+  <rect width="1200" height="440" fill="url(#glowPurple)" />
+
+  <!-- Outer Border -->
+  <rect x="1.5" y="1.5" width="1197" height="437" rx="12" fill="none" stroke="#253252" stroke-width="2" stroke-opacity="0.7" />
+
+  <!-- Top Status Bar Simulation -->
+  <g transform="translate(60, 42)">
+    <rect width="1080" height="36" rx="18" fill="#111827" fill-opacity="0.75" stroke="#1f293d" stroke-width="1.2" />
+    
+    <!-- Status Dots -->
+    <circle cx="24" cy="18" r="4.5" fill="#ef4444" />
+    <circle cx="38" cy="18" r="4.5" fill="#f59e0b" />
+    <circle cx="52" cy="18" r="4.5" fill="#10b981" />
+
+    <!-- Terminal Tag -->
+    <text x="75" y="22" font-size="12" font-weight="600" fill="#94a3b8" letter-spacing="1">GHOSTHARNESS // ZERO-ADMIN RUNTIME</text>
+
+    <!-- Telemetry Indicators in Header -->
+    <g transform="translate(710, 8)">
+      <rect width="150" height="20" rx="10" fill="#1a2236" stroke="#2b3858" stroke-width="1" />
+      <circle cx="10" cy="10" r="3.5" fill="#10b981" />
+      <text x="20" y="14" font-size="10.5" font-weight="600" fill="#cbd5e1">RTX 5060 (6GB VRAM)</text>
+    </g>
+
+    <g transform="translate(875, 8)">
+      <rect width="180" height="20" rx="10" fill="#1a2236" stroke="#2b3858" stroke-width="1" />
+      <circle cx="10" cy="10" r="3.5" fill="#06b6d4" />
+      <text x="20" y="14" font-size="10.5" font-weight="600" fill="#cbd5e1">OPTIMAL: ZERO-SPILL</text>
+    </g>
+  </g>
+
+  <!-- Hero Branding Section -->
+  <g transform="translate(60, 115)">
+    <!-- Ghost Icon Hologram -->
+    <g transform="translate(0, 8)">
+      <!-- Outer Hexagon / Shield -->
+      <polygon points="45,0 90,26 90,78 45,104 0,78 0,26" fill="url(#cardGrad)" stroke="#6366f1" stroke-width="2.5" stroke-opacity="0.9" />
+      <!-- Inner Glowing Ghost / Core -->
+      <path d="M 45 24 C 33 24 24 33 24 45 L 24 75 L 31 68 L 38 75 L 45 68 L 52 75 L 59 68 L 66 75 L 66 45 C 66 33 57 24 45 24 Z" fill="url(#cyanGrad)" />
+      <!-- Ghost Eyes -->
+      <circle cx="37" cy="44" r="3.5" fill="#070a13" />
+      <circle cx="53" cy="44" r="3.5" fill="#070a13" />
+      <!-- Pulsing Ring -->
+      <circle cx="45" cy="52" r="48" fill="none" stroke="#818cf8" stroke-width="1.2" stroke-dasharray="4 4" stroke-opacity="0.6" />
+    </g>
+
+    <!-- Title and Subtitle -->
+    <g transform="translate(125, 0)">
+      <g transform="translate(0, 16)">
+        <!-- Pill Badge -->
+        <rect width="188" height="24" rx="12" fill="url(#badgeGrad)" />
+        <text x="12" y="16" font-size="11" font-weight="800" fill="#ffffff" letter-spacing="1.5">SOVEREIGN AI LAB</text>
+      </g>
+
+      <!-- Main Title -->
+      <text x="0" y="80" font-size="54" font-weight="900" fill="url(#textGrad)" letter-spacing="-1">GHOSTHARNESS</text>
+      
+      <!-- Subtitle -->
+      <text x="0" y="112" font-size="18.5" font-weight="500" fill="#94a3b8" letter-spacing="0.2">
+        Portable AI Agent Harness &amp; Local Lab for Constrained Hardware <tspan fill="#38bdf8">(6GB VRAM)</tspan>
+      </text>
+    </g>
+  </g>
+
+  <!-- 4 Feature Highlight Cards at the Bottom -->
+  <g transform="translate(60, 275)">
+    <!-- Card 1: Zero-Admin -->
+    <g transform="translate(0, 0)">
+      <rect width="255" height="115" rx="10" fill="url(#cardGrad)" stroke="#1e293b" stroke-width="1.2" />
+      <rect x="18" y="18" width="34" height="34" rx="8" fill="#1e1b4b" stroke="#6366f1" stroke-width="1" />
+      <!-- Shield / Key Icon -->
+      <path d="M 35 25 L 43 29 L 43 38 C 43 43 35 46 35 46 C 35 46 27 43 27 38 L 27 29 Z" fill="none" stroke="#a5b4fc" stroke-width="2" />
+      <text x="64" y="32" font-size="13.5" font-weight="700" fill="#f1f5f9">Zero Administrator</text>
+      <text x="64" y="48" font-size="11" font-weight="500" fill="#818cf8">No Root / Sudo Required</text>
+      <text x="18" y="78" font-size="11" fill="#94a3b8">Runs 100% in user-space.</text>
+      <text x="18" y="95" font-size="11" fill="#64748b">Deep Freeze &amp; lab resilient.</text>
+    </g>
+
+    <!-- Card 2: 6GB VRAM Pure Fast Tier -->
+    <g transform="translate(275, 0)">
+      <rect width="255" height="115" rx="10" fill="url(#cardGrad)" stroke="#1e293b" stroke-width="1.2" />
+      <rect x="18" y="18" width="34" height="34" rx="8" fill="#062e38" stroke="#06b6d4" stroke-width="1" />
+      <!-- Lightning bolt -->
+      <path d="M 36 24 L 29 35 L 35 35 L 33 46 L 42 33 L 36 33 Z" fill="#22d3ee" />
+      <text x="64" y="32" font-size="13.5" font-weight="700" fill="#f1f5f9">6GB VRAM Zero-Spill</text>
+      <text x="64" y="48" font-size="11" font-weight="500" fill="#22d3ee">Pure GPU Inference</text>
+      <text x="18" y="78" font-size="11" fill="#94a3b8">Qwen 2.5 Coder 7B abliterated.</text>
+      <text x="18" y="95" font-size="11" fill="#64748b">45–60 tok/sec zero paging.</text>
+    </g>
+
+    <!-- Card 3: AST RepoMap & Checkpoint Undo -->
+    <g transform="translate(550, 0)">
+      <rect width="255" height="115" rx="10" fill="url(#cardGrad)" stroke="#1e293b" stroke-width="1.2" />
+      <rect x="18" y="18" width="34" height="34" rx="8" fill="#143324" stroke="#10b981" stroke-width="1" />
+      <!-- Tree / Undo icon -->
+      <path d="M 30 35 A 6 6 0 1 1 41 39 L 41 43 M 41 39 L 36 39" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" />
+      <text x="64" y="32" font-size="13.5" font-weight="700" fill="#f1f5f9">AST Map &amp; 1-Click Undo</text>
+      <text x="64" y="48" font-size="11" font-weight="500" fill="#34d399">Instant Rollback Stack</text>
+      <text x="18" y="78" font-size="11" fill="#94a3b8">Aider-style symbol tree.</text>
+      <text x="18" y="95" font-size="11" fill="#64748b">Fuzzy patch tolerance (&gt;=85%).</text>
+    </g>
+
+    <!-- Card 4: On-The-Go 4-Bit QLoRA -->
+    <g transform="translate(825, 0)">
+      <rect width="255" height="115" rx="10" fill="url(#cardGrad)" stroke="#1e293b" stroke-width="1.2" />
+      <rect x="18" y="18" width="34" height="34" rx="8" fill="#3b1129" stroke="#ec4899" stroke-width="1" />
+      <!-- DNA / Microchip -->
+      <circle cx="31" cy="30" r="3" fill="#f472b6" />
+      <circle cx="39" cy="40" r="3" fill="#f472b6" />
+      <path d="M 31 30 L 39 40 M 31 40 L 39 30" stroke="#f472b6" stroke-width="1.5" />
+      <text x="64" y="32" font-size="13.5" font-weight="700" fill="#f1f5f9">On-The-Go QLoRA</text>
+      <text x="64" y="48" font-size="11" font-weight="500" fill="#f472b6">Local Fine-Tuning Lab</text>
+      <text x="18" y="78" font-size="11" fill="#94a3b8">4.9GB VRAM training loop.</text>
+      <text x="18" y="95" font-size="11" fill="#64748b">572 multi-turn agent traces.</text>
+    </g>
+  </g>
+</svg>
