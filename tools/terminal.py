@@ -14,8 +14,9 @@ async def run_terminal(command: str, cwd: str = ".", timeout_seconds: int = 60) 
         # Prevent destructive accidental commands across Linux and Windows
         dangerous_patterns = [
             "rm -rf /", ":(){ :|:& };:", "mkfs", "dd if=",
-            "rd /s /q c:\\", "rd /s /q c:", "del /f /s /q c:\\",
-            "format c:", "diskpart"
+            "rd /s /q c:\\", "rd /s /q c:", "del /f /s /q c:\\", "del /f /s /q",
+            "format c:", "diskpart",
+            "remove-item -recurse", "remove-item -force", "del -recurse"
         ]
         cmd_lower = command.lower()
         for pattern in dangerous_patterns:

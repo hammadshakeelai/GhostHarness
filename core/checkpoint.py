@@ -11,7 +11,7 @@ class CheckpointManager:
     a syntax error or unintended modification.
     """
 
-    def __init__(self, workspace_root: str = ".", max_checkpoints: int = 15):
+    def __init__(self, workspace_root: str = ".", max_checkpoints: int = 50):
         self.workspace_root = Path(workspace_root).resolve()
         self.checkpoint_dir = self.workspace_root / ".ghost_checkpoints"
         self.max_checkpoints = max_checkpoints

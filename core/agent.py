@@ -7,6 +7,8 @@ from core.memory_manager import memory_manager
 from core.repo_map import RepoMap
 from core.checkpoint import checkpoint_manager
 from core.multimodal import multimodal_sidecar
+from core.knowledge_base import knowledge_base
+from core.hooks import hook_manager
 from tools.base import Tool
 from tools.filesystem import read_file, write_file, edit_file, list_directory
 from tools.terminal import run_terminal
@@ -178,6 +180,19 @@ class Agent:
                     "required": ["image_path"]
                 },
                 func=lambda image_path, question="Analyze this image": multimodal_sidecar.inspect_image(image_path, question)
+            ),
+            "search_knowledge_base": Tool(
+                name="search_knowledge_base",
+                description="Query local architecture specifications, documentation, and codebase symbols via BM25 search.",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "description": "Keywords to search in documentation and codebase specs"},
+                        "max_results": {"type": "integer", "description": "Maximum number of results to return", "default": 5}
+                    },
+                    "required": ["query"]
+                },
+                func=lambda query, max_results=5: {"success": True, "matches": knowledge_base.search(query, max_results)}
             )
         }
         return tools
@@ -188,7 +203,18 @@ class Agent:
     async def execute_tool(self, name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         if name not in self.tools:
             return {"success": False, "error": f"Tool '{name}' not found."}
-        return await self.tools[name].execute(**arguments)
+
+        # Lifecycle Hook: Pre-tool call (Security & Checkpointing)
+        try:
+            await hook_manager.trigger("pre_tool_call", tool_name=name, arguments=arguments)
+        except PermissionError as pe:
+            return {"success": False, "error": str(pe)}
+
+        res = await self.tools[name].execute(**arguments)
+
+        # Lifecycle Hook: Post-tool call (AST verification & Diff recording)
+        await hook_manager.trigger("post_tool_call", tool_name=name, arguments=arguments, result=res)
+        return res
 
     def compact_history_if_needed(self):
         """Compacts conversation history when token estimate exceeds 70% of context window."""
@@ -214,6 +240,9 @@ class Agent:
             return
 
         self.compact_history_if_needed()
+
+        # Lifecycle Hook: Pre-user turn
+        await hook_manager.trigger("pre_user_turn", prompt=user_prompt, history=self.history)
 
         telemetry = memory_manager.get_hardware_telemetry()
         yield {"type": "telemetry", "data": telemetry}

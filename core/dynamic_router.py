@@ -43,8 +43,10 @@ class DynamicModelRouter:
     def set_override(self, model_name: str | None):
         self.manual_override = model_name
 
-    def select_model(self, prompt: str, conversation_history: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def select_model(self, prompt: str, conversation_history: List[Dict[str, Any]] | None = None) -> Dict[str, Any]:
         """Chooses the optimal model based on complexity and hardware safety."""
+        if conversation_history is None:
+            conversation_history = []
         if self.manual_override:
             return {
                 "model": self.manual_override,

@@ -15,3 +15,5 @@ lora_adapter/
 *.env
 !.env.example
 .DS_Store
+*.db
+.ghost_knowledge.db
