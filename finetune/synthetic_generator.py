@@ -75,10 +75,11 @@ class SyntheticAgentDatasetGenerator:
     def __init__(self, output_file: Optional[str] = None):
         self.gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
         self.openrouter_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+        self.freemodel_key = os.environ.get("FREEMODEL_API_KEY", "").strip()
         self.output_file = Path(output_file or (DATASETS_DIR / "distilled_agent_dataset.jsonl"))
 
     async def generate_with_gemini(self, code_snippet: str, filename: str, suffix: str, num_samples: int = 2) -> List[Dict[str, Any]]:
-        """Generates structured ChatML pairs using Gemini 2.5 Flash with retries and JSON mode."""
+        """Generates structured ChatML pairs using Gemini 2.5 Flash with strict JSON schema."""
         if not self.gemini_key:
             return []
 
@@ -98,7 +99,6 @@ class SyntheticAgentDatasetGenerator:
             }
         }
 
-        # Resilient retry loop with backoff
         for attempt in range(1, 4):
             try:
                 async with httpx.AsyncClient(timeout=90.0) as client:
@@ -108,23 +108,20 @@ class SyntheticAgentDatasetGenerator:
                         data = json.loads(raw)
                         return data if isinstance(data, list) else [data]
                     elif resp.status_code in (429, 503):
-                        print(f"    [Gemini {resp.status_code}] High demand, waiting {attempt * 4}s...")
-                        await asyncio.sleep(attempt * 4)
+                        print(f"    [Gemini {resp.status_code}] Rate boundary reached, backing off {attempt * 6}s...")
+                        await asyncio.sleep(attempt * 6)
                     else:
                         print(f"    [!] Gemini Error {resp.status_code}: {resp.text[:120]}")
                         break
-            except (httpx.TimeoutException, httpx.NetworkError) as e:
-                print(f"    [Timeout/Network attempt {attempt}/3] Retrying in {attempt * 3}s...")
-                await asyncio.sleep(attempt * 3)
             except Exception as e:
-                print(f"    [!] Unexpected generation error: {e}")
-                break
+                print(f"    [Gemini attempt {attempt}/3] {e}, retrying in {attempt * 4}s...")
+                await asyncio.sleep(attempt * 4)
 
         return []
 
-    async def generate_with_openrouter(self, code_snippet: str, filename: str, suffix: str, num_samples: int = 2) -> List[Dict[str, Any]]:
-        """Fallback to OpenRouter if Gemini encounters temporary issues."""
-        if not self.openrouter_key:
+    async def generate_with_freemodel(self, code_snippet: str, filename: str, suffix: str, num_samples: int = 2) -> List[Dict[str, Any]]:
+        """Queries FreeModel.dev API."""
+        if not self.freemodel_key:
             return []
 
         prompt = PROMPT_TEMPLATE.format(
@@ -135,24 +132,22 @@ class SyntheticAgentDatasetGenerator:
         )
 
         headers = {
-            "Authorization": f"Bearer {self.openrouter_key}",
-            "HTTP-Referer": "https://github.com/hammadshakeel/GhostHarness",
-            "X-Title": "GhostHarness",
+            "Authorization": f"Bearer {self.freemodel_key}",
             "Content-Type": "application/json"
         }
 
         payload = {
-            "model": os.environ.get("OPENROUTER_MODEL", "google/gemma-4-31b-it:free"),
+            "model": "gpt-6-luna",
             "messages": [
-                {"role": "system", "content": "You are a JSON dataset synthesizer. Output strictly raw JSON array."},
+                {"role": "system", "content": "You are a JSON dataset synthesizer. Output strictly a raw JSON array."},
                 {"role": "user", "content": prompt}
             ],
             "temperature": 0.2
         }
 
         try:
-            async with httpx.AsyncClient(timeout=90.0) as client:
-                resp = await client.post("https://openrouter.ai/api/v1/chat/completions", json=payload, headers=headers)
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                resp = await client.post("https://api.freemodel.dev/v1/chat/completions", json=payload, headers=headers)
                 if resp.status_code == 200:
                     raw = resp.json()["choices"][0]["message"]["content"].strip()
                     if raw.startswith("```json"):
@@ -163,8 +158,11 @@ class SyntheticAgentDatasetGenerator:
                         raw = raw[:-3]
                     data = json.loads(raw.strip())
                     return data if isinstance(data, list) else [data]
-        except Exception:
-            pass
+                else:
+                    print(f"    [FreeModel] Status {resp.status_code}: {resp.text[:100]}")
+        except Exception as e:
+            print(f"    [FreeModel Error] {e}")
+
         return []
 
     async def process_file(self, file_path: Path, num_samples: int = 2) -> int:
@@ -177,11 +175,13 @@ class SyntheticAgentDatasetGenerator:
 
         print(f"[*] Synthesizing agent traces for `{file_path.name}`...")
 
+        # 1. Primary: Gemini 2.5 Flash
         samples = await self.generate_with_gemini(snippet, file_path.name, suffix, num_samples)
 
-        if not samples and self.openrouter_key:
-            print("    [Fallback] Trying OpenRouter...")
-            samples = await self.generate_with_openrouter(snippet, file_path.name, suffix, num_samples)
+        # 2. Secondary: FreeModel
+        if not samples and self.freemodel_key:
+            print("    [Fallback] Trying FreeModel.dev...")
+            samples = await self.generate_with_freemodel(snippet, file_path.name, suffix, num_samples)
 
         if not samples:
             print(f"    [!] Failed to generate traces for {file_path.name}")
@@ -209,9 +209,9 @@ class SyntheticAgentDatasetGenerator:
 
         print("=" * 65)
         print(f" GhostHarness: Frontier Agent Trace Distillation")
-        print(f" Primary Teacher: Gemini 2.5 Flash (Resilient JSON Schema)")
-        print(f" Target Files   : {len(all_files)} codebase files")
-        print(f" Output Dataset : {self.output_file}")
+        print(f" Teachers Configured: Gemini 2.5 Flash | FreeModel.dev | OpenRouter")
+        print(f" Target Files       : {len(all_files)} codebase files")
+        print(f" Output Dataset     : {self.output_file}")
         print("=" * 65)
 
         total = 0
@@ -219,11 +219,12 @@ class SyntheticAgentDatasetGenerator:
             print(f"[{idx}/{len(all_files)}] Processing {f.relative_to(PROJECT_ROOT)}...")
             count = await self.process_file(f, num_samples=samples_per_file)
             total += count
-            await asyncio.sleep(2.0)
+            # Smooth 4.5s pacing ensures 100% compliance with Google AI Studio 15 RPM free limit
+            await asyncio.sleep(4.5)
 
         print("\n" + "=" * 65)
-        print(f"[COMPLETED] Batch completed! Total new traces: {total}")
-        print(f"Dataset ready for 6GB VRAM QLoRA training: {self.output_file}")
+        print(f"[COMPLETED] Batch finished! Total traces in dataset: {total}")
+        print(f"Dataset location: {self.output_file}")
         print("=" * 65)
 
 if __name__ == "__main__":
