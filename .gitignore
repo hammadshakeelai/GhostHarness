@@ -9,4 +9,8 @@ models/
 datasets/*.jsonl
 merged_model/
 lora_adapter/
+.cache/
+.env
+.env.*
+*.env
 .DS_Store
