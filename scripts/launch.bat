@@ -36,8 +36,13 @@ if not exist ".venv\Scripts\activate.bat" (
     call .venv\Scripts\activate.bat
     python -m pip install --upgrade pip --quiet
     if exist "requirements.txt" (
-        echo [*] Installing dependencies from requirements.txt...
-        python -m pip install -r requirements.txt --quiet
+        if exist "wheels" (
+            echo [*] Installing dependencies from offline wheels/ folder...
+            python -m pip install --no-index --find-links=wheels -r requirements.txt --quiet
+        ) else (
+            echo [*] Installing dependencies from requirements.txt...
+            python -m pip install -r requirements.txt --quiet
+        )
     )
 ) else (
     call .venv\Scripts\activate.bat
