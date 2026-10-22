@@ -38,6 +38,18 @@ fi
 
 # Run with virtual environment
 export PYTHONPATH="$DIR:$PYTHONPATH"
+
+# Auto-start embedded llama-server if no external backend is active
+if ! curl -s http://127.0.0.1:8080/v1/models >/dev/null 2>&1 && \
+   ! curl -s http://127.0.0.1:1234/v1/models >/dev/null 2>&1 && \
+   ! curl -s http://127.0.0.1:11434/v1/models >/dev/null 2>&1; then
+    if [ -f "bin/llama-server" ] && [ -f "models/qwen2.5-coder-7b-instruct-abliterated-q4_k_m.gguf" ]; then
+        echo "[*] No active LLM backend detected. Starting bundled llama-server..."
+        bin/llama-server -m models/qwen2.5-coder-7b-instruct-abliterated-q4_k_m.gguf -ngl 99 --ctx-size 8192 --flash-attn --port 8080 --host 127.0.0.1 >/dev/null 2>&1 &
+        sleep 2
+    fi
+fi
+
 if [ "$1" == "--gui" ]; then
     echo "[*] Launching Visual Workspace Web GUI..."
     .venv/bin/python -m core.cli --gui

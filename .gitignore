@@ -17,3 +17,4 @@ lora_adapter/
 .DS_Store
 *.db
 .ghost_knowledge.db
+bin/

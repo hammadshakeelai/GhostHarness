@@ -48,6 +48,19 @@ if not exist ".venv\Scripts\activate.bat" (
     call .venv\Scripts\activate.bat
 )
 
+REM Check if a local LLM backend is already active on port 8080, 1234, or 11434
+netstat -ano | findstr ":8080 :1234 :11434" >nul 2>&1
+if %ERRORLEVEL% NEQ 0 (
+    if exist "bin\llama-server.exe" (
+        if exist "models\qwen2.5-coder-7b-instruct-abliterated-q4_k_m.gguf" (
+            echo [*] No external LLM backend detected.
+            echo [*] Starting bundled portable llama-server (RTX 5060 GPU mode)...
+            start /b "" "bin\llama-server.exe" -m "models\qwen2.5-coder-7b-instruct-abliterated-q4_k_m.gguf" -ngl 99 --ctx-size 8192 --flash-attn --port 8080 --host 127.0.0.1
+            timeout /t 3 /nobreak >nul 2>&1
+        )
+    )
+)
+
 REM Route launcher arguments
 if "%1"=="--init" (
     python scripts\init_wizard.py
