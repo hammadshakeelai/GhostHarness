@@ -11,10 +11,15 @@ async def run_terminal(command: str, cwd: str = ".", timeout_seconds: int = 60) 
         if not work_dir.exists():
             work_dir = Path.cwd()
 
-        # Prevent destructive accidental commands like rm -rf /
-        dangerous_patterns = ["rm -rf /", ":(){ :|:& };:", "mkfs", "dd if="]
+        # Prevent destructive accidental commands across Linux and Windows
+        dangerous_patterns = [
+            "rm -rf /", ":(){ :|:& };:", "mkfs", "dd if=",
+            "rd /s /q c:\\", "rd /s /q c:", "del /f /s /q c:\\",
+            "format c:", "diskpart"
+        ]
+        cmd_lower = command.lower()
         for pattern in dangerous_patterns:
-            if pattern in command:
+            if pattern in cmd_lower:
                 return {
                     "success": False,
                     "error": f"Command rejected by safety guard: dangerous pattern detected ('{pattern}')"

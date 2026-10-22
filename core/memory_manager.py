@@ -61,10 +61,18 @@ class MemoryManager:
             except Exception:
                 pass
 
-        # Fallback to nvidia-smi
-        if shutil.which("nvidia-smi"):
+        # Fallback to nvidia-smi (check PATH and standard Windows locations)
+        nvsmi_candidates = [
+            shutil.which("nvidia-smi"),
+            "C:\\Windows\\System32\\nvidia-smi.exe",
+            "C:\\Program Files\\NVIDIA Corporation\\NVSMI\\nvidia-smi.exe",
+            "/usr/bin/nvidia-smi"
+        ]
+        smi_bin = next((b for b in nvsmi_candidates if b and os.path.isfile(b)), None)
+
+        if smi_bin:
             try:
-                cmd = ["nvidia-smi", "--query-gpu=memory.used,memory.total,memory.free,name", "--format=csv,noheader,nounits"]
+                cmd = [smi_bin, "--query-gpu=memory.used,memory.total,memory.free,name", "--format=csv,noheader,nounits"]
                 res = subprocess.check_output(cmd, text=True, timeout=2).strip().split(",")
                 if len(res) >= 4:
                     used = float(res[0].strip())

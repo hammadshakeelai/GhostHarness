@@ -3,6 +3,10 @@ import subprocess
 from pathlib import Path
 from typing import List, Dict, Any
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DATASETS_DIR = PROJECT_ROOT / "datasets"
+DATASETS_DIR.mkdir(parents=True, exist_ok=True)
+
 class USBDatasetLoader:
     """Ingests source code, diffs, git commits, and docs to build high-grade training datasets."""
 
@@ -19,7 +23,7 @@ class USBDatasetLoader:
         }
 
     @classmethod
-    def harvest_directory_to_dataset(cls, directory_path: str, output_jsonl: str = "dataset.jsonl") -> int:
+    def harvest_directory_to_dataset(cls, directory_path: str, output_jsonl: str = str(DATASETS_DIR / "codebase_dataset.jsonl")) -> int:
         """Parses Python files in a directory and generates self-contained completion pairs."""
         p = Path(directory_path)
         samples = []

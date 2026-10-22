@@ -3,10 +3,14 @@ import sys
 import argparse
 from pathlib import Path
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+os.environ["HF_HOME"] = str(PROJECT_ROOT / ".cache" / "huggingface")
+os.environ["TORCH_HOME"] = str(PROJECT_ROOT / ".cache" / "torch")
+
 def merge_lora_and_prepare(
     base_model_path: str,
     adapter_path: str,
-    output_merged_path: str
+    output_merged_path: str = str(PROJECT_ROOT / "models" / "merged_model")
 ):
     """
     Merges 4-bit LoRA adapter weights back into the base model

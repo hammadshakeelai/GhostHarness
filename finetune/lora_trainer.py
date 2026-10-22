@@ -3,10 +3,15 @@ import sys
 import argparse
 from pathlib import Path
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+# Force all HF & PyTorch caches into the USB repo folder
+os.environ["HF_HOME"] = str(PROJECT_ROOT / ".cache" / "huggingface")
+os.environ["TORCH_HOME"] = str(PROJECT_ROOT / ".cache" / "torch")
+
 def train_qwen_qlora(
     dataset_path: str,
     base_model_id: str = "Qwen/Qwen2.5-Coder-7B-Instruct",
-    output_dir: str = "./lora_adapter",
+    output_dir: str = str(PROJECT_ROOT / "finetune" / "adapters" / "default_lora"),
     max_seq_length: int = 2048,
     lora_r: int = 8,
     lora_alpha: int = 16,
