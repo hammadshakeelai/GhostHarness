@@ -17,7 +17,7 @@ from core.engine import InferenceEngine
 console = Console()
 
 def print_banner():
-    banner = """
+    banner = r"""
    ________                  __  __                                
   / ____/ /_  ____  _____/ /_/ / /___ _____  ____  ___  __________
  / / __/ __ \/ __ \/ ___/ __/ /_/ / __ `/ __ \/ __ \/ _ \/ ___/ ___/
