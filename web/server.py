@@ -136,6 +136,34 @@ async def chat_stream(req: ChatRequest):
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
+@app.get("/api/mission")
+async def get_mission_status():
+    """Returns autonomous fine-tuning, acceptance audit, and evaluation reports."""
+    rep_dir = BASE_DIR.parent / "eval" / "reports"
+    adapter_dir = BASE_DIR.parent / "finetune" / "adapters" / "lab_tuned_adapter"
+    summary_file = rep_dir / "mission_summary.json"
+    report_file = rep_dir / "lab_mission_report.md"
+    adapter_file = adapter_dir / "adapter_model.safetensors"
+
+    summary_data = {}
+    if summary_file.is_file():
+        try:
+            summary_data = json.loads(summary_file.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
+    report_markdown = ""
+    if report_file.is_file():
+        report_markdown = report_file.read_text(encoding="utf-8")
+
+    return {
+        "adapter_present": adapter_file.is_file(),
+        "adapter_name": "lab_tuned_adapter" if adapter_file.is_file() else None,
+        "adapter_size_mb": round(adapter_file.stat().st_size / (1024 * 1024), 2) if adapter_file.is_file() else 0,
+        "summary": summary_data,
+        "report_markdown": report_markdown
+    }
+
 def start_server(host: str = "127.0.0.1", port: int = 8765):
     import uvicorn
     uvicorn.run(app, host=host, port=port, log_level="info")

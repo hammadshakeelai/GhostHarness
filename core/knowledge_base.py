@@ -123,6 +123,12 @@ class KnowledgeBase:
 
         return indexed
 
+    def rebuild_index(self, root_dir: Optional[Path] = None) -> int:
+        """Reindexes all markdown documentation and python symbols into FTS5 catalog."""
+        m_count = self.index_markdown_files(root_dir)
+        p_count = self.index_python_codebase(root_dir)
+        return m_count + p_count
+
     def search(self, query: str, max_results: int = 5) -> List[Dict[str, Any]]:
         """
         Executes a BM25 ranked full-text query across all indexed code, specs, and docs.

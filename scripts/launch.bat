@@ -62,7 +62,9 @@ if %ERRORLEVEL% NEQ 0 (
 )
 
 REM Route launcher arguments
-if "%1"=="--init" (
+if "%1"=="--auto" (
+    python scripts\run_autonomous_lab.py %*
+) else if "%1"=="--init" (
     python scripts\init_wizard.py
 ) else if "%1"=="--gui" (
     echo [*] Launching Visual Workspace Web GUI on http://127.0.0.1:8765...

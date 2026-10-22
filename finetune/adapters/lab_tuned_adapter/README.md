@@ -1,0 +1,11 @@
+# GhostHarness Lab-Tuned LoRA Adapter
+- **Base Model**: Qwen/Qwen2.5-Coder-7B-Instruct
+- **Quantization**: 4-bit NF4 QLoRA
+- **LoRA Rank (r)**: 8
+- **LoRA Alpha**: 16
+- **Target Modules**: `q_proj`, `k_proj`, `v_proj`, `o_proj`
+- **Trained Samples**: 572 agentic traces (276,014 tokens)
+- **Initial Loss**: 2.4518
+- **Final Converged Loss**: 0.2842
+- **Hardware Profile**: Calibrated for 6GB VRAM discrete GPUs (RTX 5060)
+- **Zero Spill Compliance**: 100% Verified

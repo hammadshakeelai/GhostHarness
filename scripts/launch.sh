@@ -50,7 +50,10 @@ if ! curl -s http://127.0.0.1:8080/v1/models >/dev/null 2>&1 && \
     fi
 fi
 
-if [ "$1" == "--gui" ]; then
+if [ "$1" == "--auto" ]; then
+    echo "[*] Launching Master Autonomous Lab Orchestrator..."
+    .venv/bin/python scripts/run_autonomous_lab.py
+elif [ "$1" == "--gui" ]; then
     echo "[*] Launching Visual Workspace Web GUI..."
     .venv/bin/python -m core.cli --gui
 elif [ "$1" == "--test" ] || [ "$1" == "--doctor" ]; then

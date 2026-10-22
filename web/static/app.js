@@ -106,6 +106,26 @@ async function checkBackend() {
   }
 }
 
+// Mission & LoRA Adapter Status
+async function checkMissionStatus() {
+  try {
+    const res = await fetch('/api/mission');
+    if (!res.ok) return;
+    const data = await res.json();
+    const adapterPill = document.getElementById('adapter-status');
+    if (adapterPill) {
+      if (data.adapter_present) {
+        adapterPill.style.display = 'inline-block';
+        adapterPill.innerText = `🎯 LoRA: ${data.adapter_name} (${data.adapter_size_mb} MB)`;
+      } else {
+        adapterPill.style.display = 'none';
+      }
+    }
+  } catch (e) {
+    console.debug('Mission status check failed');
+  }
+}
+
 // Trigger Undo
 async function triggerUndo() {
   try {
@@ -413,6 +433,8 @@ document.addEventListener('DOMContentLoaded', () => {
   initResizer();
   loadPlugins();
   checkBackend();
+  checkMissionStatus();
   updateTelemetry();
   setInterval(updateTelemetry, 2500);
+  setInterval(checkMissionStatus, 5000);
 });

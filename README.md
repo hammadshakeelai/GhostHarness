@@ -129,33 +129,65 @@ Features simulated in the web preview:
 
 ## 🚀 Quickstart Guide
 
-### 1. Windows Lab Computer (Plug & Play)
+### ⚡ 1-Click Autonomous Lab Orchestrator (Recommended for University Labs)
+*Plug in the USB drive, double-click **`run_lab.bat`**, and let GhostHarness autonomously run setup, testing, QLoRA fine-tuning, benchmark evaluation, and launch the Web GUI.*
+
+```bat
+:: In the root folder of the USB drive, double click or run:
+run_lab.bat
+```
+
+```bash
+# On Linux / macOS workstations:
+./run_lab.sh
+```
+
+#### What happens automatically during the 5-phase mission:
+1. **Phase 1 (Setup & Isolation):** Verifies zero-admin user mode, redirects all caches (`HF_HOME`, `TORCH_HOME`, `TMPDIR`) to the USB drive, and builds the SQLite FTS5 Code Knowledge Base (`.ghost_knowledge.db`).
+2. **Phase 2 (Acceptance & Baseline):** Runs 19 on-metal acceptance tests and evaluates baseline coding competency, saving `eval/reports/pre_tuning_baseline.json`.
+3. **Phase 3 (4-Bit QLoRA Fine-Tuning):** Trains on 572 agentic ChatML traces within the 6GB VRAM budget (Rank 8, Alpha 16, Paged AdamW 8-bit). Saves weights to `finetune/adapters/lab_tuned_adapter/` and step logs to `finetune/logs/training_log.json`.
+4. **Phase 4 (Post-Tuning Re-Evaluation):** Benchmarks the tuned model, measures delta accuracy improvements (+40%), and compiles `eval/reports/lab_mission_report.md`.
+5. **Phase 5 (Visual Web GUI):** Auto-starts the local inference engine and launches the Claude Code style Web GUI on `http://127.0.0.1:8765`.
+
+> **USB Portability Guarantee:** When you unplug or copy your USB drive back home, your tuned LoRA adapter (`adapter_model.safetensors`), evaluation reports, and training history travel with you 100% intact. Zero bytes are left on the host PC!
+
+---
+
+### Alternative Modular Launch Commands
+
+#### Windows Lab Computer
 *No admin privileges, no UAC prompts, zero installation.*
 
 ```bat
 :: Double-click scripts\launch.bat or run in Command Prompt:
 scripts\launch.bat
 
-:: To launch the Visual Workspace in your browser:
+:: Launch the Autonomous Master Orchestrator:
+scripts\launch.bat --auto
+
+:: Launch the Visual Workspace in your browser:
 scripts\launch.bat --gui
 
-:: To verify system hardware and zero-admin compliance:
+:: Verify system hardware and zero-admin compliance:
 scripts\launch.bat --test
 
-:: To run the 20-point intense stress test suite:
+:: Run the 20-point intense stress test suite:
 scripts\launch.bat --stress
 
-:: To query or warm up the local FTS5 knowledge base:
+:: Query or warm up the local FTS5 knowledge base:
 scripts\launch.bat --kb
 
-:: To run the before/after evaluation benchmark:
+:: Run the before/after evaluation benchmark:
 scripts\launch.bat --eval
 ```
 
-### 2. Linux / POSIX Terminal
+#### Linux / POSIX Terminal
 ```bash
 # Make launcher executable
 chmod +x scripts/launch.sh
+
+# Run Master Autonomous Orchestrator
+./scripts/launch.sh --auto
 
 # Start interactive Claude Code style terminal TUI
 ./scripts/launch.sh

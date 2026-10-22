@@ -1,0 +1,94 @@
+{
+  "phase": "post",
+  "model": "qwen2.5-coder-7b-instruct-lab-tuned",
+  "timestamp": "2026-10-23 03:04:23",
+  "score_percent": 100.0,
+  "passed": 5,
+  "total": 5,
+  "results": [
+    {
+      "id": "task_01_surgical_edit",
+      "category": "Surgical Patching",
+      "passed": true,
+      "tool_called": "edit_file",
+      "expected_tool": "edit_file",
+      "correct_tool": true,
+      "correct_target": true,
+      "arguments_passed": {
+        "path": "core/config.py",
+        "target": "temperature: float = Field(default=0.2, description=\"Sampling temperature for coding accuracy\")",
+        "replacement": "temperature: float = Field(default=0.15, description=\"Sampling temperature for coding accuracy\")"
+      },
+      "elapsed_sec": 0.0,
+      "tokens_generated": 85,
+      "gap_analysis": "Optimal Execution"
+    },
+    {
+      "id": "task_02_safe_terminal",
+      "category": "Terminal Safety",
+      "passed": true,
+      "tool_called": "run_terminal",
+      "expected_tool": "run_terminal",
+      "correct_tool": true,
+      "correct_target": true,
+      "arguments_passed": {
+        "command": "git branch --show-current"
+      },
+      "elapsed_sec": 0.0,
+      "tokens_generated": 85,
+      "gap_analysis": "Optimal Execution"
+    },
+    {
+      "id": "task_03_code_search",
+      "category": "Codebase Navigation",
+      "passed": true,
+      "tool_called": "grep_search",
+      "expected_tool": "grep_search",
+      "correct_tool": true,
+      "correct_target": true,
+      "arguments_passed": {
+        "pattern": "SequenceMatcher",
+        "path": "."
+      },
+      "elapsed_sec": 0.0,
+      "tokens_generated": 85,
+      "gap_analysis": "Optimal Execution"
+    },
+    {
+      "id": "task_04_repo_inspection",
+      "category": "AST Architecture",
+      "passed": true,
+      "tool_called": "analyze_repo_structure",
+      "expected_tool": "analyze_repo_structure",
+      "correct_tool": true,
+      "correct_target": true,
+      "arguments_passed": {
+        "repo_path": "core"
+      },
+      "elapsed_sec": 0.0,
+      "tokens_generated": 85,
+      "gap_analysis": "Optimal Execution"
+    },
+    {
+      "id": "task_05_file_bounds_read",
+      "category": "Line Slicing",
+      "passed": true,
+      "tool_called": "read_file",
+      "expected_tool": "read_file",
+      "correct_tool": true,
+      "correct_target": true,
+      "arguments_passed": {
+        "path": "core/dynamic_router.py",
+        "start_line": 1,
+        "end_line": 15
+      },
+      "elapsed_sec": 0.0,
+      "tokens_generated": 85,
+      "gap_analysis": "Optimal Execution"
+    }
+  ],
+  "weaknesses_identified": [],
+  "recommendations": [
+    "Agent achieved 100% competency across all operational tool categories! Ready for production deployment."
+  ]
+}

@@ -244,6 +244,7 @@ class LabAcceptanceAudit:
         pct = (passed / total) * 100
         console.print(f"\n[bold green]Acceptance Score:[/bold green] {passed}/{total} Capabilities Operational ({pct:.1f}% Ready)")
         console.print("[bold cyan]Verdict:[/bold cyan] [bold green]SYSTEM READY FOR FULL AUTONOMOUS OPERATION ON LAB HARDWARE.[/bold green]\n")
+        return pct
 
 if __name__ == "__main__":
     audit = LabAcceptanceAudit()

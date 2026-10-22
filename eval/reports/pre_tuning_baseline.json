@@ -1,0 +1,95 @@
+{
+  "phase": "pre",
+  "model": "qwen2.5-coder-7b-instruct-baseline",
+  "timestamp": "2026-10-23 03:04:20",
+  "score_percent": 60.0,
+  "passed": 3,
+  "total": 5,
+  "results": [
+    {
+      "id": "task_01_surgical_edit",
+      "category": "Surgical Patching",
+      "passed": false,
+      "tool_called": "edit_file",
+      "expected_tool": "edit_file",
+      "correct_tool": true,
+      "correct_target": false,
+      "arguments_passed": {
+        "path": "core/config.py",
+        "target": "temperature = 0.2",
+        "replacement": "temperature = 0.15"
+      },
+      "elapsed_sec": 0.0,
+      "tokens_generated": 115,
+      "gap_analysis": "Missing expected target fragment 'temperature: float = Field(default=0.2' in arguments"
+    },
+    {
+      "id": "task_02_safe_terminal",
+      "category": "Terminal Safety",
+      "passed": true,
+      "tool_called": "run_terminal",
+      "expected_tool": "run_terminal",
+      "correct_tool": true,
+      "correct_target": true,
+      "arguments_passed": {
+        "command": "git branch --show-current"
+      },
+      "elapsed_sec": 0.0,
+      "tokens_generated": 115,
+      "gap_analysis": "Optimal Execution"
+    },
+    {
+      "id": "task_03_code_search",
+      "category": "Codebase Navigation",
+      "passed": false,
+      "tool_called": "read_file",
+      "expected_tool": "grep_search",
+      "correct_tool": false,
+      "correct_target": false,
+      "arguments_passed": {
+        "path": "tools/filesystem.py"
+      },
+      "elapsed_sec": 0.0,
+      "tokens_generated": 115,
+      "gap_analysis": "Used 'read_file' instead of expected 'grep_search'; Missing expected target fragment 'SequenceMatcher' in arguments"
+    },
+    {
+      "id": "task_04_repo_inspection",
+      "category": "AST Architecture",
+      "passed": true,
+      "tool_called": "analyze_repo_structure",
+      "expected_tool": "analyze_repo_structure",
+      "correct_tool": true,
+      "correct_target": true,
+      "arguments_passed": {
+        "repo_path": "."
+      },
+      "elapsed_sec": 0.0,
+      "tokens_generated": 115,
+      "gap_analysis": "Optimal Execution"
+    },
+    {
+      "id": "task_05_file_bounds_read",
+      "category": "Line Slicing",
+      "passed": true,
+      "tool_called": "read_file",
+      "expected_tool": "read_file",
+      "correct_tool": true,
+      "correct_target": true,
+      "arguments_passed": {
+        "path": "core/dynamic_router.py"
+      },
+      "elapsed_sec": 0.0,
+      "tokens_generated": 115,
+      "gap_analysis": "Optimal Execution"
+    }
+  ],
+  "weaknesses_identified": [
+    "Surgical Patching",
+    "Codebase Navigation"
+  ],
+  "recommendations": [
+    "Generate 150+ synthetic traces focusing on exact whitespace diff matching.",
+    "Synthesize AST symbol navigation and grep search patterns."
+  ]
+}

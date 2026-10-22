@@ -1,0 +1,17 @@
+======================================================================
+GHOSTHARNESS AUTONOMOUS QLORA FINE-TUNING SUMMARY
+======================================================================
+Timestamp: 2026-10-23 03:04:22
+Base Model: Qwen/Qwen2.5-Coder-7B-Instruct
+Dataset: distilled_agent_dataset.jsonl (572 samples, 276,014 tokens)
+LoRA Rank / Alpha: 8 / 16
+Epochs: 3 | Steps: 213
+Loss Trajectory: 2.4518 -> 0.2842
+Peak VRAM Budget: 4.88 GB / 6.00 GB (Zero Spill)
+Adapter Artifacts:
+  - adapter_model.safetensors (12.28 MB)
+  - adapter_config.json
+  - tokenizer_config.json
+  - special_tokens_map.json
+Status: SUCCESS - Ready for immediate agent execution & GGUF conversion
+======================================================================

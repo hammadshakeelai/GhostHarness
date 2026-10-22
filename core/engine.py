@@ -107,6 +107,22 @@ class InferenceEngine:
         self.api_base = f"http://127.0.0.1:{port}/v1"
         return True
 
+    async def get_effective_model(self, requested_model: str) -> str:
+        """Intelligently maps requested model to the active backend model if needed."""
+        health = await self.check_health()
+        available = health.get("available_models", [])
+        if not available:
+            return requested_model
+        if requested_model in available:
+            return requested_model
+        for m in available:
+            if requested_model.lower() in m.lower() or m.lower() in requested_model.lower():
+                return m
+        # If single model loaded locally, use it
+        if len(available) == 1:
+            return available[0]
+        return requested_model
+
     async def stream_chat(
         self,
         messages: List[Dict[str, Any]],
@@ -116,8 +132,9 @@ class InferenceEngine:
         max_tokens: int = 4096,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Stream chat completions token by token with OpenAI-compatible tool call support."""
+        effective_model = await self.get_effective_model(model)
         payload: Dict[str, Any] = {
-            "model": model,
+            "model": effective_model,
             "messages": messages,
             "temperature": temperature,
             "max_tokens": max_tokens,
