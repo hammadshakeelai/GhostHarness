@@ -10,6 +10,18 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATASETS_DIR = PROJECT_ROOT / "datasets"
 DATASETS_DIR.mkdir(parents=True, exist_ok=True)
 
+# Helper to load .env securely without leaking
+def load_env_file():
+    env_file = PROJECT_ROOT / ".env"
+    if env_file.is_file():
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                os.environ.setdefault(k.strip(), v.strip())
+
+load_env_file()
+
 PROMPT_TEMPLATE = """You are an expert AI dataset synthesizer for training autonomous coding agents.
 Analyze the following source code snippet and generate {num_samples} realistic, high-quality, multi-turn agent interaction samples.
 
@@ -52,23 +64,36 @@ Generate an array of JSON objects matching this format. Output ONLY valid JSON:
 
 class SyntheticAgentDatasetGenerator:
     """
-    Distills agentic coding traces from frontier teacher models (Claude, GPT-4o, DeepSeek, Qwen 72B)
+    Distills agentic coding traces from teacher models (Google Gemini, Claude, GPT-4o, etc.)
     into high-quality training pairs formatted specifically for Qwen 7B 4-bit QLoRA.
     """
 
     def __init__(
         self,
-        api_key: str,
-        api_base: str = "https://api.openai.com/v1",
-        model: str = "gpt-4o",
+        api_key: Optional[str] = None,
+        api_base: Optional[str] = None,
+        model: Optional[str] = None,
         output_file: Optional[str] = None
     ):
-        self.api_key = api_key
-        self.api_base = api_base.rstrip("/")
-        self.model = model
+        # Prefer GEMINI_API_KEY if present
+        gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
+        self.api_key = api_key or gemini_key or os.environ.get("OPENAI_API_KEY", "").strip()
+
+        # If Gemini key is used, default to Google's official OpenAI-compatible endpoint
+        if gemini_key and (not api_base or "googleapis.com" in api_base or api_base == "https://api.openai.com/v1"):
+            self.api_base = "https://generativelanguage.googleapis.com/v1beta/openai"
+            self.model = model or os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+        else:
+            self.api_base = (api_base or os.environ.get("API_BASE", "https://api.openai.com/v1")).rstrip("/")
+            self.model = model or os.environ.get("MODEL_NAME", "gpt-4o")
+
         self.output_file = Path(output_file or (DATASETS_DIR / "distilled_agent_dataset.jsonl"))
 
     async def generate_from_file(self, file_path: str, num_samples: int = 3) -> int:
+        if not self.api_key:
+            print("[!] Error: No API key found. Please add GEMINI_API_KEY to your .env file.")
+            return 0
+
         p = Path(file_path)
         if not p.is_file():
             print(f"[!] File not found: {file_path}")
@@ -78,7 +103,6 @@ class SyntheticAgentDatasetGenerator:
         if len(code.strip()) < 50:
             return 0
 
-        # Truncate snippet to 3500 chars to fit prompt budget
         snippet = code[:3500]
         suffix = p.suffix.lstrip(".") or "python"
 
@@ -119,7 +143,6 @@ class SyntheticAgentDatasetGenerator:
                 data = resp.json()
                 raw_text = data["choices"][0]["message"]["content"].strip()
 
-                # Clean markdown backticks if present
                 if raw_text.startswith("```json"):
                     raw_text = raw_text[7:]
                 elif raw_text.startswith("```"):
@@ -131,7 +154,6 @@ class SyntheticAgentDatasetGenerator:
                 if isinstance(parsed_samples, dict):
                     parsed_samples = [parsed_samples]
 
-                # Append to JSONL
                 with open(self.output_file, "a", encoding="utf-8") as f:
                     for s in parsed_samples:
                         f.write(json.dumps(s) + "\n")
@@ -149,26 +171,18 @@ class SyntheticAgentDatasetGenerator:
         selected_files = files[:max_files]
 
         total_generated = 0
-        print(f"[*] Starting batch harvest across {len(selected_files)} code files...")
+        print(f"[*] Starting batch harvest with {self.model} across {len(selected_files)} code files...")
 
         for file_path in selected_files:
             count = await self.generate_from_file(str(file_path), num_samples=samples_per_file)
             total_generated += count
-            await asyncio.sleep(1.0)  # Gentle rate limiting
+            await asyncio.sleep(1.0)
 
         print("=" * 60)
-        print(f"[DONE] Total high-grade synthetic agent traces generated: {total_generated}")
+        print(f"[DONE] Total synthetic agent traces generated: {total_generated}")
         print(f"Dataset location: {self.output_file}")
         print("=" * 60)
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python finetune/synthetic_generator.py <API_KEY> [API_BASE] [MODEL]")
-        sys.exit(1)
-
-    key = sys.argv[1]
-    base = sys.argv[2] if len(sys.argv) > 2 else "https://api.openai.com/v1"
-    mdl = sys.argv[3] if len(sys.argv) > 3 else "gpt-4o"
-
-    gen = SyntheticAgentDatasetGenerator(api_key=key, api_base=base, model=mdl)
+    gen = SyntheticAgentDatasetGenerator()
     asyncio.run(gen.batch_harvest(str(PROJECT_ROOT / "core"), samples_per_file=2))
