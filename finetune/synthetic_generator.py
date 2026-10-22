@@ -76,7 +76,55 @@ class SyntheticAgentDatasetGenerator:
         self.gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
         self.openrouter_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
         self.freemodel_key = os.environ.get("FREEMODEL_API_KEY", "").strip()
+        self.agnes_key = os.environ.get("AGNES_API_KEY", "").strip()
         self.output_file = Path(output_file or (DATASETS_DIR / "distilled_agent_dataset.jsonl"))
+
+    async def generate_with_agnes(self, code_snippet: str, filename: str, suffix: str, num_samples: int = 2) -> List[Dict[str, Any]]:
+        """Queries Agnes AI API for synthetic code traces."""
+        if not self.agnes_key:
+            return []
+
+        prompt = PROMPT_TEMPLATE.format(
+            num_samples=num_samples,
+            language=suffix,
+            code_snippet=code_snippet,
+            filename=filename
+        )
+
+        headers = {
+            "Authorization": f"Bearer {self.agnes_key}",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "model": "agnes-3.0-flash",
+            "messages": [
+                {"role": "system", "content": "You are an expert AI dataset synthesizer. Output strictly a JSON array of ChatML objects."},
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.2,
+            "max_tokens": 2048
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=45.0) as client:
+                resp = await client.post("https://apihub.agnes-ai.com/v1/chat/completions", json=payload, headers=headers)
+                if resp.status_code == 200:
+                    raw = resp.json()["choices"][0]["message"]["content"].strip()
+                    if raw.startswith("```json"):
+                        raw = raw[7:]
+                    elif raw.startswith("```"):
+                        raw = raw[3:]
+                    if raw.endswith("```"):
+                        raw = raw[:-3]
+                    data = json.loads(raw.strip())
+                    return data if isinstance(data, list) else [data]
+                else:
+                    print(f"    [Agnes AI] Status {resp.status_code}: {resp.text[:120]}")
+        except Exception as e:
+            print(f"    [Agnes AI Error] {e}")
+
+        return []
 
     async def generate_with_gemini(self, code_snippet: str, filename: str, suffix: str, num_samples: int = 2) -> List[Dict[str, Any]]:
         """Generates structured ChatML pairs using Gemini 2.5 Flash with strict JSON schema."""
@@ -178,7 +226,12 @@ class SyntheticAgentDatasetGenerator:
         # 1. Primary: Gemini 2.5 Flash
         samples = await self.generate_with_gemini(snippet, file_path.name, suffix, num_samples)
 
-        # 2. Secondary: FreeModel
+        # 2. Secondary: Agnes AI (high-speed frontier proxy)
+        if not samples and self.agnes_key:
+            print("    [Fallback] Trying Agnes AI (agnes-3.0-flash)...")
+            samples = await self.generate_with_agnes(snippet, file_path.name, suffix, num_samples)
+
+        # 3. Tertiary: FreeModel
         if not samples and self.freemodel_key:
             print("    [Fallback] Trying FreeModel.dev...")
             samples = await self.generate_with_freemodel(snippet, file_path.name, suffix, num_samples)
