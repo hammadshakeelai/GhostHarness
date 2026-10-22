@@ -13,4 +13,5 @@ lora_adapter/
 .env
 .env.*
 *.env
+!.env.example
 .DS_Store
