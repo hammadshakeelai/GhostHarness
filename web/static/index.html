@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GhostHarness — Sovereign AI Agent & Visual Workspace</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Header with Hardware Telemetry -->
+  <header>
+    <div class="brand">
+      <span class="brand-badge">SOVEREIGN</span>
+      <span>GhostHarness</span>
+      <span id="backend-status" style="font-size: 0.8rem; margin-left: 10px; color: var(--text-muted);">● Checking Backend...</span>
+    </div>
+
+    <div class="telemetry-bar">
+      <!-- VRAM Gauge -->
+      <div class="gauge-pill" title="Discrete GPU Dedicated VRAM (Zero Spill Guard)">
+        <span>VRAM</span>
+        <div class="meter-track">
+          <div id="vram-fill" class="meter-fill"></div>
+        </div>
+        <span id="vram-text">-- / 6.0 GB</span>
+      </div>
+
+      <!-- RAM Gauge -->
+      <div class="gauge-pill" title="Host System RAM">
+        <span>RAM</span>
+        <div class="meter-track">
+          <div id="ram-fill" class="meter-fill"></div>
+        </div>
+        <span id="ram-text">-- / 32.0 GB</span>
+      </div>
+
+      <div id="headroom-status" style="font-size: 0.8rem; color: var(--text-muted); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+        Zero Spill Guard Active
+      </div>
+    </div>
+  </header>
+
+  <!-- Split Screen: Left = Agent Stream, Right = Workspace & Live Diffs -->
+  <div class="main-container">
+    <!-- Chat & Agent Stream -->
+    <div class="chat-panel">
+      <div class="message-list" id="message-list">
+        <div class="msg-card msg-assistant">
+          <b>GhostHarness Initialized.</b><br>
+          Connected to local abliterated Qwen model harness. Dynamic routing active:<br>
+          • <b>Fast Tier (7B):</b> 100% in 6GB VRAM for blazing instant edits and terminal commands.<br>
+          • <b>Heavy Tier (14B/32B):</b> Split GPU+RAM offload for deep reasoning.<br>
+          Zero administrator privileges required. Enter your prompt below to start building.
+        </div>
+      </div>
+
+      <div class="input-area">
+        <textarea id="prompt-input" class="prompt-input" placeholder="Ask GhostHarness to edit code, research repos, or run tasks... (Enter to send)"></textarea>
+        <button class="btn-send" onclick="sendMessage()">Run</button>
+      </div>
+    </div>
+
+    <!-- Workspace & Dynamic Components -->
+    <div class="workspace-panel">
+      <div class="workspace-tabs" id="workspace-tabs">
+        <!-- Dynamically injected plugins -->
+      </div>
+      <div class="workspace-content" id="workspace-content">
+        <!-- Tab content rendered by JS -->
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

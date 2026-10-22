@@ -1,0 +1,35 @@
+[project]
+name = "ghost-harness"
+version = "0.1.0"
+description = "Self-Contained Sovereign AI Agent Harness & Local Lab for Constrained Hardware (6GB VRAM + 32GB RAM)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.28.0",
+    "pydantic>=2.6.0",
+    "httpx>=0.27.0",
+    "aiofiles>=23.2.1",
+    "rich>=13.7.1",
+    "textual>=0.53.0",
+    "psutil>=5.9.8",
+    "jinja2>=3.1.3",
+    "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+gpu = [
+    "pynvml>=11.5.0",
+]
+finetune = [
+    "torch>=2.2.0",
+    "transformers>=4.40.0",
+    "peft>=0.10.0",
+    "bitsandbytes>=0.43.0",
+    "datasets>=2.18.0",
+    "accelerate>=0.29.0",
+    "trl>=0.8.6",
+]
+
+[project.scripts]
+ghost = "core.cli:main"
