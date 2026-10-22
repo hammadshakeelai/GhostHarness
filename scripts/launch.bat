@@ -25,8 +25,12 @@ if %ERRORLEVEL% NEQ 0 (
     exit /b 1
 )
 
-REM Create portable virtualenv in repo if missing
-if not exist ".venv" (
+REM Create portable virtualenv in repo if missing or from Linux
+if not exist ".venv\Scripts\activate.bat" (
+    if exist ".venv" (
+        echo [*] Detected Linux venv or incomplete virtualenv, preparing Windows venv...
+        rmdir /s /q ".venv"
+    )
     echo [*] Creating portable user-space virtualenv in .venv...
     python -m venv .venv
     call .venv\Scripts\activate.bat
