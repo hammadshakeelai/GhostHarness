@@ -71,6 +71,10 @@ if "%1"=="--init" (
     python tests\system_test.py
 ) else if "%1"=="--doctor" (
     python tests\system_test.py
+) else if "%1"=="--audit" (
+    python scripts\lab_acceptance_test.py
+) else if "%1"=="--benchmark" (
+    python scripts\lab_acceptance_test.py
 ) else if "%1"=="--stress" (
     python tests\intense_test_suite.py
 ) else if "%1"=="--kb" (

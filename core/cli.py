@@ -148,6 +148,11 @@ async def run_tui():
                 subprocess.run([sys.executable, str(PROJECT_ROOT / "tests" / "system_test.py")])
                 continue
 
+            if prompt in ["/audit", "/benchmark"]:
+                import subprocess
+                subprocess.run([sys.executable, str(PROJECT_ROOT / "scripts" / "lab_acceptance_test.py")])
+                continue
+
             if prompt == "/stress":
                 import subprocess
                 subprocess.run([sys.executable, str(PROJECT_ROOT / "tests" / "intense_test_suite.py")])

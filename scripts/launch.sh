@@ -55,6 +55,8 @@ if [ "$1" == "--gui" ]; then
     .venv/bin/python -m core.cli --gui
 elif [ "$1" == "--test" ] || [ "$1" == "--doctor" ]; then
     .venv/bin/python tests/system_test.py
+elif [ "$1" == "--audit" ] || [ "$1" == "--benchmark" ]; then
+    .venv/bin/python scripts/lab_acceptance_test.py
 elif [ "$1" == "--stress" ]; then
     .venv/bin/python tests/intense_test_suite.py
 elif [ "$1" == "--kb" ]; then
