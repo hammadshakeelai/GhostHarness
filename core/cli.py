@@ -3,6 +3,10 @@ import os
 import asyncio
 import argparse
 from pathlib import Path
+
+# Add project root to path for direct execution
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.markdown import Markdown
@@ -71,7 +75,7 @@ async def run_tui():
 
     while True:
         try:
-            prompt = console.input("[bold magenta]ghost-coder>[/bold magenta] ").strip()
+            prompt = console.input("[bold magenta]ghost-coder ❯[/bold magenta] ").strip()
             if not prompt:
                 continue
 
@@ -113,22 +117,56 @@ async def run_tui():
                     console.print("[bold green]Dynamic auto-switching re-enabled.[/bold green]")
                 continue
 
-            console.print(f"\n[dim]Analyzing task & routing...[/dim]")
+            # Claude Code Style Turn Execution
+            t = memory_manager.get_hardware_telemetry()
+            vram_gb = t['vram_used_mb'] / 1024
+            console.print(f"\n[bold cyan]● Thinking[/bold cyan] [dim](qwen-7b | {vram_gb:.1f}/6.0 GB VRAM | zero-spill)[/dim]")
+            
             async for evt in agent.process_user_turn(prompt):
                 evt_type = evt.get("type")
                 if evt_type == "routing":
-                    console.print(f"[bold cyan]⚡ Engine Selected:[/bold cyan] {evt['model']} ({evt['tier'].upper()}) - {evt['reason']}")
+                    pass
                 elif evt_type == "token":
                     console.print(evt["content"], end="")
                 elif evt_type == "tool_start":
-                    console.print(f"\n[bold yellow]⚙ Tool Call:[/bold yellow] {evt['tool']}({evt['arguments']})")
+                    t_name = evt["tool"]
+                    args = evt["arguments"]
+                    if t_name == "read_file":
+                        p = args.get("path", "")
+                        s = args.get("start_line", 1)
+                        e = args.get("end_line", "end")
+                        console.print(f"\n  [bold black on cyan] READ [/bold black on cyan] [bold white]{p}[/bold white]:[dim]{s}-{e}[/dim]")
+                    elif t_name == "edit_file":
+                        p = args.get("path", "")
+                        console.print(f"\n  [bold black on green] EDIT [/bold black on green] [bold white]{p}[/bold white] [dim](surgical patch)[/dim]")
+                    elif t_name == "run_terminal":
+                        cmd = args.get("command", "")
+                        console.print(f"\n  [bold black on yellow] BASH [/bold black on yellow] [bold white]{cmd}[/bold white]")
+                    elif t_name == "grep_search":
+                        pat = args.get("pattern", "")
+                        console.print(f"\n  [bold black on magenta] GREP [/bold black on magenta] [bold white]{pat}[/bold white]")
+                    else:
+                        console.print(f"\n  [bold black on blue] TOOL [/bold black on blue] [bold white]{t_name}[/bold white]({args})")
                 elif evt_type == "tool_end":
                     res = evt["result"]
                     if evt["tool"] == "edit_file" and "diff" in res:
-                        console.print("\n[bold green]Generated Surgical Code Diff:[/bold green]")
-                        console.print(Syntax(res["diff"], "diff", theme="monokai", line_numbers=True))
+                        console.print(Panel(
+                            Syntax(res["diff"], "diff", theme="monokai", line_numbers=True),
+                            title=f"[bold green]Patch Applied: {evt['arguments'].get('path')}[/bold green]",
+                            border_style="green",
+                            padding=(0, 1)
+                        ))
+                    elif evt["tool"] == "run_terminal":
+                        stdout = res.get("stdout", "").strip()
+                        exit_c = res.get("exit_code", 0)
+                        status_str = f"[green]exit {exit_c}[/green]" if exit_c == 0 else f"[red]exit {exit_c}[/red]"
+                        if stdout:
+                            preview = "\n".join(stdout.splitlines()[:6])
+                            console.print(f"    └─ {status_str}: [dim]{preview}[/dim]")
+                        else:
+                            console.print(f"    └─ {status_str}")
                     elif not res.get("success", False):
-                        console.print(f"[bold red]Tool Result Error:[/bold red] {res.get('error')}")
+                        console.print(f"    [bold red]Error:[/bold red] {res.get('error')}")
             console.print("\n")
 
         except (KeyboardInterrupt, EOFError):
