@@ -10,7 +10,6 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATASETS_DIR = PROJECT_ROOT / "datasets"
 DATASETS_DIR.mkdir(parents=True, exist_ok=True)
 
-# Helper to load .env securely without leaking
 def load_env_file():
     env_file = PROJECT_ROOT / ".env"
     if env_file.is_file():
@@ -64,34 +63,53 @@ Generate an array of JSON objects matching this format. Output ONLY valid JSON:
 
 class SyntheticAgentDatasetGenerator:
     """
-    Distills agentic coding traces from teacher models (Google Gemini, Claude, GPT-4o, etc.)
+    Distills agentic coding traces from teacher models via OpenRouter or Google Gemini
     into high-quality training pairs formatted specifically for Qwen 7B 4-bit QLoRA.
     """
 
     def __init__(
         self,
+        provider: Optional[str] = None,
         api_key: Optional[str] = None,
         api_base: Optional[str] = None,
         model: Optional[str] = None,
         output_file: Optional[str] = None
     ):
-        # Prefer GEMINI_API_KEY if present
+        openrouter_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
         gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
-        self.api_key = api_key or gemini_key or os.environ.get("OPENAI_API_KEY", "").strip()
 
-        # If Gemini key is used, default to Google's official OpenAI-compatible endpoint
-        if gemini_key and (not api_base or "googleapis.com" in api_base or api_base == "https://api.openai.com/v1"):
+        # Auto-detect or honor requested provider
+        if provider == "openrouter" or (not provider and openrouter_key):
+            self.provider = "openrouter"
+            self.api_key = api_key or openrouter_key
+            self.api_base = "https://openrouter.ai/api/v1"
+            self.model = model or os.environ.get("OPENROUTER_MODEL", "anthropic/claude-3.5-sonnet")
+        elif provider == "gemini" or (not provider and gemini_key):
+            self.provider = "gemini"
+            self.api_key = api_key or gemini_key
             self.api_base = "https://generativelanguage.googleapis.com/v1beta/openai"
             self.model = model or os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
         else:
-            self.api_base = (api_base or os.environ.get("API_BASE", "https://api.openai.com/v1")).rstrip("/")
-            self.model = model or os.environ.get("MODEL_NAME", "gpt-4o")
+            self.provider = "custom"
+            self.api_key = api_key or os.environ.get("OPENAI_API_KEY", "").strip()
+            self.api_base = (api_base or "https://api.openai.com/v1").rstrip("/")
+            self.model = model or "gpt-4o"
 
         self.output_file = Path(output_file or (DATASETS_DIR / "distilled_agent_dataset.jsonl"))
 
+    def get_headers(self) -> Dict[str, str]:
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+        if self.provider == "openrouter":
+            headers["HTTP-Referer"] = "https://github.com/hammadshakeel/GhostHarness"
+            headers["X-Title"] = "GhostHarness Sovereign Agent"
+        return headers
+
     async def generate_from_file(self, file_path: str, num_samples: int = 3) -> int:
         if not self.api_key:
-            print("[!] Error: No API key found. Please add GEMINI_API_KEY to your .env file.")
+            print("[!] Error: No API key found. Please add OPENROUTER_API_KEY or GEMINI_API_KEY to your .env file.")
             return 0
 
         p = Path(file_path)
@@ -113,11 +131,6 @@ class SyntheticAgentDatasetGenerator:
             filename=p.name
         )
 
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
-
         payload = {
             "model": self.model,
             "messages": [
@@ -127,14 +140,14 @@ class SyntheticAgentDatasetGenerator:
             "temperature": 0.3
         }
 
-        print(f"[*] Querying teacher model ({self.model}) for `{p.name}`...")
+        print(f"[*] Querying {self.provider.upper()} teacher ({self.model}) for `{p.name}`...")
 
         async with httpx.AsyncClient(timeout=120.0) as client:
             try:
                 resp = await client.post(
                     f"{self.api_base}/chat/completions",
                     json=payload,
-                    headers=headers
+                    headers=self.get_headers()
                 )
                 if resp.status_code != 200:
                     print(f"[!] API Error {resp.status_code}: {resp.text}")
@@ -171,7 +184,7 @@ class SyntheticAgentDatasetGenerator:
         selected_files = files[:max_files]
 
         total_generated = 0
-        print(f"[*] Starting batch harvest with {self.model} across {len(selected_files)} code files...")
+        print(f"[*] Starting batch harvest with {self.provider.upper()} ({self.model}) across {len(selected_files)} code files...")
 
         for file_path in selected_files:
             count = await self.generate_from_file(str(file_path), num_samples=samples_per_file)
@@ -184,5 +197,6 @@ class SyntheticAgentDatasetGenerator:
         print("=" * 60)
 
 if __name__ == "__main__":
-    gen = SyntheticAgentDatasetGenerator()
+    prov = sys.argv[1] if len(sys.argv) > 1 else None
+    gen = SyntheticAgentDatasetGenerator(provider=prov)
     asyncio.run(gen.batch_harvest(str(PROJECT_ROOT / "core"), samples_per_file=2))
