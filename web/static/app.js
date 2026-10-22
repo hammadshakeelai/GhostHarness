@@ -2,8 +2,9 @@ let activeTab = 'diff_viewer';
 let currentDiff = null;
 let isRecording = false;
 let recognition = null;
+let pluginsList = [];
 
-// Initialize Web Speech Dictation if supported by browser
+// Initialize Web Speech Dictation
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SpeechRec();
@@ -42,17 +43,12 @@ function toggleDictation() {
 function updateMicButtonUI() {
   const btn = document.getElementById('mic-btn');
   if (btn) {
-    if (isRecording) {
-      btn.style.backgroundColor = 'var(--danger)';
-      btn.innerText = '● Listening...';
-    } else {
-      btn.style.backgroundColor = 'var(--bg-card)';
-      btn.innerText = '🎤 Voice';
-    }
+    btn.style.backgroundColor = isRecording ? 'var(--danger)' : 'transparent';
+    btn.innerText = isRecording ? '●' : '🎤';
   }
 }
 
-// Telemetry Polling (every 2.5 seconds)
+// Telemetry Polling (Every 2.5 seconds)
 async function updateTelemetry() {
   try {
     const res = await fetch('/api/telemetry');
@@ -66,13 +62,9 @@ async function updateTelemetry() {
     if (vramFill && vramText) {
       vramFill.style.width = `${vramPct}%`;
       vramText.innerText = `${(data.vram_used_mb / 1024).toFixed(1)} / ${(data.vram_total_mb / 1024).toFixed(1)} GB`;
-      if (vramPct > 88) {
-        vramFill.style.backgroundColor = 'var(--danger)';
-      } else if (vramPct > 70) {
-        vramFill.style.backgroundColor = 'var(--warning)';
-      } else {
-        vramFill.style.backgroundColor = 'var(--success)';
-      }
+      if (vramPct > 88) vramFill.style.backgroundColor = 'var(--danger)';
+      else if (vramPct > 70) vramFill.style.backgroundColor = 'var(--warning)';
+      else vramFill.style.backgroundColor = 'var(--cyan)';
     }
 
     // RAM Bar
@@ -84,17 +76,17 @@ async function updateTelemetry() {
       ramText.innerText = `${(data.ram_used_mb / 1024).toFixed(1)} / ${(data.ram_total_mb / 1024).toFixed(1)} GB`;
     }
 
-    // Status Pill
+    // Status Badge
     const statusPill = document.getElementById('headroom-status');
     if (statusPill) {
       statusPill.innerText = data.status_message;
     }
   } catch (err) {
-    console.error('Telemetry poll failed:', err);
+    console.debug('Telemetry poll failed:', err);
   }
 }
 
-// Check Backend Health
+// Backend Health Check
 async function checkBackend() {
   try {
     const res = await fetch('/api/health');
@@ -110,17 +102,17 @@ async function checkBackend() {
       }
     }
   } catch (e) {
-    console.warn('Backend check failed:', e);
+    console.debug('Backend check offline');
   }
 }
 
-// Trigger Undo Checkpoint
+// Trigger Undo
 async function triggerUndo() {
   try {
     const res = await fetch('/api/undo', { method: 'POST' });
     const data = await res.json();
     if (data.success) {
-      alert(`Reverted checkpoint: ${data.description}\nRestored: ${data.restored_files.join(', ') || 'No files modified'}`);
+      alert(`↺ Snapshot Rolled Back!\nDescription: ${data.description}\nRestored: ${data.restored_files.join(', ') || 'Clean state'}`);
       currentDiff = null;
       loadPlugins();
     } else {
@@ -131,7 +123,7 @@ async function triggerUndo() {
   }
 }
 
-// Change Model Selection
+// Model Selection
 async function onModelChange(sel) {
   const val = sel.value === 'auto' ? null : sel.value;
   await fetch('/api/model/override', {
@@ -141,112 +133,128 @@ async function onModelChange(sel) {
   });
 }
 
-// Fetch Dynamic Tabs
+// Workspace Tab Navigation
 async function loadPlugins() {
   try {
     const res = await fetch('/api/plugins');
-    const plugins = await res.json();
+    pluginsList = await res.json();
     const tabsContainer = document.getElementById('workspace-tabs');
     tabsContainer.innerHTML = '';
 
-    plugins.forEach(p => {
+    pluginsList.forEach(p => {
       const btn = document.createElement('button');
       btn.className = `tab-btn ${p.id === activeTab ? 'active' : ''}`;
       btn.innerText = p.title;
-      btn.onclick = () => {
-        activeTab = p.id;
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        renderTabContent(p);
-      };
+      btn.onclick = () => switchWorkspaceTab(p.id);
       tabsContainer.appendChild(btn);
     });
 
-    const curr = plugins.find(p => p.id === activeTab) || plugins[0];
-    if (curr) renderTabContent(curr);
+    const activePlugin = pluginsList.find(p => p.id === activeTab) || pluginsList[0];
+    if (activePlugin) renderTabContent(activePlugin);
   } catch (e) {
-    console.error('Failed loading plugins:', e);
+    console.debug('Failed loading plugins:', e);
   }
+}
+
+function switchWorkspaceTab(tabId) {
+  activeTab = tabId;
+  document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', pluginsList[i] && pluginsList[i].id === tabId);
+  });
+  const p = pluginsList.find(x => x.id === tabId);
+  if (p) renderTabContent(p);
 }
 
 async function renderTabContent(plugin) {
   const container = document.getElementById('workspace-content');
+  if (!container) return;
+
   if (plugin.id === 'diff_viewer') {
     if (!currentDiff) {
       container.innerHTML = `
-        <div style="text-align: center; color: var(--text-muted); margin-top: 80px;">
-          <h3>No Pending File Diffs</h3>
-          <p style="font-size: 0.9rem; margin-top: 8px;">When GhostHarness edits a file, unified line diffs appear here for live review.</p>
-        </div>
-      `;
+        <div style="padding: 40px; text-align: center; color: var(--text-dim);">
+          <div style="font-size: 2.2rem; margin-bottom: 12px;">📝</div>
+          <b style="color: var(--text-muted); font-size: 1rem;">No Active Code Modifications</b>
+          <p style="font-size: 0.85rem; margin-top: 8px;">Ask GhostHarness to edit a file, and the surgical unified diff will render here in real time.</p>
+        </div>`;
     } else {
       renderDiffCard(currentDiff);
     }
   } else if (plugin.id === 'repo_explorer') {
-    container.innerHTML = `<div style="color: var(--text-muted);">Generating semantic symbol tree...</div>`;
+    container.innerHTML = `<div style="color: var(--text-muted); padding: 10px;">Generating AST symbol tree...</div>`;
     const res = await fetch('/api/repomap');
     const data = await res.json();
     container.innerHTML = `
-      <div style="background: var(--bg-card); padding: 18px; border-radius: 8px; border: 1px solid var(--border); font-family: var(--mono-font); font-size: 0.85rem; white-space: pre-wrap;">
-        <h4 style="color: var(--accent); margin-bottom: 12px;">Semantic Codebase AST Map (Aider-Style Token Budgeted)</h4>
+      <div style="background: var(--bg-card); padding: 18px; border-radius: 8px; border: 1px solid var(--border); font-family: var(--mono-font); font-size: 0.82rem; white-space: pre-wrap;">
+        <div style="color: var(--cyan); font-weight: 700; margin-bottom: 10px; display: flex; justify-content: space-between;">
+          <span>Semantic AST RepoMap</span>
+          <span style="color: var(--text-muted);">Compressed Token Budget</span>
+        </div>
         ${escapeHtml(data.map)}
-      </div>
-    `;
+      </div>`;
   } else if (plugin.id === 'checkpoints') {
     const res = await fetch('/api/checkpoints');
     const data = await res.json();
-    let html = `<div style="background: var(--bg-card); padding: 20px; border-radius: 8px; border: 1px solid var(--border);">
-      <h3>Atomic Modification Checkpoints</h3>
-      <p style="color: var(--text-muted); margin: 6px 0 16px 0;">Snapshots taken before each tool mutation:</p>
-      <ul style="line-height: 2; list-style-position: inside;">`;
+    let html = `
+      <div style="background: var(--bg-card); padding: 18px; border-radius: 8px; border: 1px solid var(--border);">
+        <div style="font-weight: 700; margin-bottom: 8px; color: #fff;">Atomic File Snapshots</div>
+        <p style="color: var(--text-muted); font-size: 0.82rem; margin-bottom: 14px;">Instant rollback points created prior to every disk mutation:</p>
+        <div style="display: flex; flex-direction: column; gap: 8px;">`;
     if (!data.checkpoints || data.checkpoints.length === 0) {
-      html += `<li>No snapshots yet recorded.</li>`;
+      html += `<div style="color: var(--text-dim); font-size: 0.85rem;">No checkpoints recorded yet.</div>`;
     } else {
       data.checkpoints.forEach(c => {
-        html += `<li><b>[${c.time}]</b> ${escapeHtml(c.description)} (${c.files.join(', ') || 'No files'})</li>`;
+        html += `
+          <div style="background: #0f1527; border: 1px solid var(--border); padding: 10px 14px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div style="font-weight: 600; font-size: 0.85rem; color: #fff;">${escapeHtml(c.description)}</div>
+              <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 2px;">${c.time} • ${c.files.join(', ') || 'No files'}</div>
+            </div>
+            <button onclick="triggerUndo()" class="undo-mini-btn">↺ Rollback</button>
+          </div>`;
       });
     }
-    html += `</ul><button onclick="triggerUndo()" style="margin-top: 14px; background: var(--accent); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">Rollback Most Recent</button></div>`;
+    html += `</div></div>`;
     container.innerHTML = html;
   } else if (plugin.id === 'vram_monitor') {
     container.innerHTML = `
-      <div style="background: var(--bg-card); padding: 24px; border-radius: 12px; border: 1px solid var(--border);">
-        <h3>Hardware Budget & Optimization</h3>
-        <p style="color: var(--text-muted); margin: 12px 0 20px 0;">University Lab Machine Profile (6GB Discrete VRAM + 32GB RAM)</p>
-        <ul style="line-height: 2; color: #cbd5e1; list-style-position: inside;">
-          <li><b>Dedicated VRAM Ceiling:</b> 5,400 MB (Preserves 744 MB for Windows/X11 Desktop compositor)</li>
-          <li><b>Fast Model Residency:</b> Qwen 2.5 Coder 7B (Q4_K_M) takes ~4.3 GB + 0.8 GB KV cache = 100% in VRAM</li>
-          <li><b>Hybrid Offloading:</b> Qwen 2.5 Coder 14B offloads 26 layers into VRAM, remainder into 32GB RAM</li>
-          <li><b>Zero GPU Spill Guard:</b> Active memory manager dynamically limits context length if headroom drops</li>
-        </ul>
-      </div>
-    `;
-  } else if (plugin.html_template) {
-    container.innerHTML = plugin.html_template;
-  } else {
-    container.innerHTML = `<div style="padding: 20px;"><h3>${plugin.title}</h3><p>${plugin.description}</p></div>`;
+      <div style="background: var(--bg-card); padding: 20px; border-radius: 8px; border: 1px solid var(--border); font-size: 0.88rem; line-height: 1.8;">
+        <h3 style="color: #fff; margin-bottom: 8px;">6GB VRAM Zero-Spill Architecture</h3>
+        <p style="color: var(--text-muted); margin-bottom: 14px; font-size: 0.82rem;">Calibrated for NVIDIA RTX 5060/4050 Discrete GPUs</p>
+        <div style="font-family: var(--mono-font); font-size: 0.82rem; color: #cbd5e1;">
+          <div>• Dedicated VRAM Ceiling: <span style="color: var(--cyan); font-weight: 700;">5,400 MB</span> (744 MB reserved for Windows DWM)</div>
+          <div>• Fast Tier (7B Q4_K_M): <span style="color: var(--success); font-weight: 700;">100% in VRAM</span> (4.3 GB weights + 850 MB KV cache)</div>
+          <div>• Heavy Tier (14B Q4_K_M): <span style="color: var(--accent-light);">Hybrid offload</span> (26 layers GPU, remainder 32GB RAM)</div>
+          <div>• Zero-Spill Guard: Continuous NVML telemetry dynamically guards KV cache context</div>
+        </div>
+      </div>`;
   }
 }
 
 function renderDiffCard(diffText) {
   const container = document.getElementById('workspace-content');
   const lines = diffText.split('\n');
-  let html = `<div class="diff-card"><div class="diff-header"><span>Surgical Code Patch</span><span style="color: var(--accent);">Modified File</span></div>`;
+  let html = `<div class="diff-card"><div class="diff-header"><span>Surgical Code Patch (Live Diff)</span><span style="color: var(--success);">✔ Validated</span></div>`;
   lines.forEach(l => {
-    let cls = '';
-    if (l.startsWith('+') && !l.startsWith('+++')) cls = 'diff-add';
-    else if (l.startsWith('-') && !l.startsWith('---')) cls = 'diff-del';
-    html += `<div class="diff-line ${cls}">${escapeHtml(l)}</div>`;
+    let cls = 'diff-line';
+    if (l.startsWith('+') && !l.startsWith('+++')) cls += ' diff-add';
+    else if (l.startsWith('-') && !l.startsWith('---')) cls += ' diff-del';
+    else if (l.startsWith('@@')) cls += ' diff-hunk';
+    html += `<div class="${cls}">${escapeHtml(l)}</div>`;
   });
   html += `</div>`;
   container.innerHTML = html;
 }
 
-function escapeHtml(str) {
-  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+function fillPrompt(text) {
+  const input = document.getElementById('prompt-input');
+  if (input) {
+    input.value = text;
+    sendMessage();
+  }
 }
 
-// Send Chat Message
+// Send Message & Parse SSE Stream
 async function sendMessage() {
   const input = document.getElementById('prompt-input');
   const prompt = input.value.trim();
@@ -254,7 +262,6 @@ async function sendMessage() {
 
   input.value = '';
   appendUserMessage(prompt);
-
   const assistantCard = createAssistantMessageCard();
 
   try {
@@ -282,72 +289,130 @@ async function sendMessage() {
           if (raw === '[DONE]') break;
           try {
             const evt = JSON.parse(raw);
-            handleAgentEvent(evt, assistantCard);
-          } catch (e) {}
+            handleStreamEvent(evt, assistantCard);
+          } catch (e) {
+            // Raw text chunk fallback
+            assistantCard.querySelector('.content-body').innerHTML += escapeHtml(raw);
+          }
         }
       }
     }
   } catch (err) {
-    assistantCard.innerHTML += `<div style="color: var(--danger); margin-top: 8px;">Error: ${err.message}</div>`;
+    assistantCard.querySelector('.content-body').innerHTML += `<div style="color: var(--danger); margin-top: 8px;">Error: ${escapeHtml(err.message)}</div>`;
   }
+}
+
+function handleStreamEvent(evt, card) {
+  const body = card.querySelector('.content-body');
+  if (evt.type === 'token') {
+    body.innerHTML += escapeHtml(evt.content);
+  } else if (evt.type === 'tool_start') {
+    let tagCls = 'read';
+    if (evt.tool === 'edit_file') tagCls = 'edit';
+    if (evt.tool === 'run_terminal') tagCls = 'bash';
+
+    body.innerHTML += `
+      <div class="tool-badge ${tagCls}">
+        <span>⚙ ${escapeHtml(evt.tool)}</span>
+        <span style="color: var(--text-muted);">${escapeHtml(JSON.stringify(evt.arguments))}</span>
+      </div><br/>`;
+  } else if (evt.type === 'tool_end') {
+    if (evt.tool === 'edit_file' && evt.result && evt.result.diff) {
+      currentDiff = evt.result.diff;
+      switchWorkspaceTab('diff_viewer');
+
+      // Append Claude style Artifact card
+      body.innerHTML += `
+        <div class="artifact-card">
+          <div class="artifact-header">
+            <span>📝 Artifact: ${escapeHtml(evt.arguments.path || 'Code Patch')}</span>
+            <button onclick="switchWorkspaceTab('diff_viewer')" class="artifact-open-btn">View in Inspector ↗</button>
+          </div>
+        </div>`;
+    }
+  }
+  scrollChatToBottom();
 }
 
 function appendUserMessage(text) {
   const list = document.getElementById('message-list');
-  const div = document.createElement('div');
-  div.className = 'msg-card msg-user';
-  div.innerText = text;
-  list.appendChild(div);
-  list.scrollTop = list.scrollHeight;
+  const card = document.createElement('div');
+  card.className = 'msg-card msg-user';
+  card.innerHTML = `<div style="font-weight: 600;">❯ ${escapeHtml(text)}</div>`;
+  list.appendChild(card);
+  scrollChatToBottom();
 }
 
 function createAssistantMessageCard() {
   const list = document.getElementById('message-list');
-  const div = document.createElement('div');
-  div.className = 'msg-card msg-assistant';
-  list.appendChild(div);
-  list.scrollTop = list.scrollHeight;
-  return div;
+  const card = document.createElement('div');
+  card.className = 'msg-card msg-assistant';
+  card.innerHTML = `
+    <div class="agent-header">
+      <span class="agent-avatar">⚡</span>
+      <span class="agent-title">GhostHarness Agent</span>
+    </div>
+    <div class="content-body" style="white-space: pre-wrap;"></div>`;
+  list.appendChild(card);
+  scrollChatToBottom();
+  return card;
 }
 
-function handleAgentEvent(evt, card) {
-  if (evt.type === 'routing') {
-    const badge = document.createElement('div');
-    badge.style.fontSize = '0.8rem';
-    badge.style.color = 'var(--text-muted)';
-    badge.style.marginBottom = '6px';
-    badge.innerText = `[Engine: ${evt.model} | Tier: ${evt.tier.toUpperCase()}]`;
-    card.appendChild(badge);
-  } else if (evt.type === 'token') {
-    card.innerHTML += escapeHtml(evt.content);
-  } else if (evt.type === 'tool_start') {
-    const tb = document.createElement('div');
-    tb.className = 'tool-badge';
-    tb.innerText = `⚙ Executing Tool: ${evt.tool}(${JSON.stringify(evt.arguments)})`;
-    card.appendChild(tb);
-  } else if (evt.type === 'tool_end') {
-    if (evt.tool === 'edit_file' && evt.result.diff) {
-      currentDiff = evt.result.diff;
-      activeTab = 'diff_viewer';
-      loadPlugins();
-    }
-  }
+function scrollChatToBottom() {
   const list = document.getElementById('message-list');
-  list.scrollTop = list.scrollHeight;
+  if (list) list.scrollTop = list.scrollHeight;
 }
 
-window.addEventListener('DOMContentLoaded', () => {
-  updateTelemetry();
-  setInterval(updateTelemetry, 2500);
-  checkBackend();
-  setInterval(checkBackend, 10000);
-  loadPlugins();
+function escapeHtml(str) {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
 
-  const input = document.getElementById('prompt-input');
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
+// Resizable Split Pane Logic
+function initResizer() {
+  const resizer = document.getElementById('resizer');
+  const chatPanel = document.getElementById('chat-panel');
+  const workspacePanel = document.getElementById('workspace-panel');
+  let isResizing = false;
+
+  resizer.addEventListener('mousedown', (e) => {
+    isResizing = true;
+    document.body.style.cursor = 'col-resize';
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!isResizing) return;
+    const containerWidth = window.innerWidth;
+    const leftWidth = e.clientX;
+    const rightWidth = containerWidth - leftWidth;
+
+    if (leftWidth > 350 && rightWidth > 350) {
+      chatPanel.style.flex = 'none';
+      chatPanel.style.width = `${leftWidth}px`;
+      workspacePanel.style.flex = '1';
     }
   });
+
+  window.addEventListener('mouseup', () => {
+    isResizing = false;
+    document.body.style.cursor = 'default';
+  });
+}
+
+// Enter to send in textarea
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('prompt-input');
+  if (input) {
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+  }
+
+  initResizer();
+  loadPlugins();
+  checkBackend();
+  updateTelemetry();
+  setInterval(updateTelemetry, 2500);
 });

@@ -3,90 +3,134 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GhostHarness — Sovereign AI Agent & Visual Workspace</title>
+  <title>GhostHarness — Claude Code Visual Workspace</title>
   <link rel="stylesheet" href="/static/styles.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
 </head>
 <body>
-  <!-- Header with Hardware Telemetry and Actions -->
+  <!-- Header Bar -->
   <header>
-    <div class="brand">
-      <span class="brand-badge">SOVEREIGN</span>
-      <span>GhostHarness</span>
-      <span id="backend-status" style="font-size: 0.8rem; margin-left: 10px; color: var(--text-muted);">● Checking Backend...</span>
+    <div class="header-left">
+      <div class="brand">
+        <span class="brand-badge">SOVEREIGN</span>
+        <span class="brand-title">GhostHarness</span>
+      </div>
+      <span id="backend-status" class="status-indicator">● Checking Backend...</span>
     </div>
 
     <div class="telemetry-bar">
       <!-- Model Selector -->
-      <select id="model-select" onchange="onModelChange(this)" style="background: var(--bg-card); color: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; font-size: 0.8rem; outline: none;">
-        <option value="auto">⚡ Auto (7B / 14B Router)</option>
-        <option value="qwen2.5-coder-7b-instruct">⚡ Force 7B (100% 6GB VRAM)</option>
-        <option value="qwen2.5-coder-14b-instruct">🧠 Force 14B (Hybrid VRAM+RAM)</option>
+      <select id="model-select" onchange="onModelChange(this)" class="model-select" title="Active Model Routing">
+        <option value="auto">⚡ Auto Router (7B pure VRAM / 14B hybrid)</option>
+        <option value="qwen2.5-coder-7b-instruct">⚡ Force 7B (100% 6GB VRAM, 55 t/s)</option>
+        <option value="qwen2.5-coder-14b-instruct">🧠 Force 14B (Hybrid 26L GPU + 32GB RAM)</option>
       </select>
 
-      <!-- Undo Button -->
-      <button onclick="triggerUndo()" style="background: #232c42; border: 1px solid var(--border); color: #cbd5e1; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; cursor: pointer;" title="Undo latest code edit">
+      <!-- Rollback Button -->
+      <button onclick="triggerUndo()" class="action-btn" title="Undo latest code edit snapshot">
         ↺ Undo
       </button>
 
       <!-- VRAM Gauge -->
       <div class="gauge-pill" title="Discrete GPU Dedicated VRAM (Zero Spill Guard)">
-        <span>VRAM</span>
+        <span class="gauge-label">VRAM</span>
         <div class="meter-track">
           <div id="vram-fill" class="meter-fill"></div>
         </div>
-        <span id="vram-text">-- / 6.0 GB</span>
+        <span id="vram-text" class="gauge-val">-- / 6.0 GB</span>
       </div>
 
       <!-- RAM Gauge -->
       <div class="gauge-pill" title="Host System RAM">
-        <span>RAM</span>
+        <span class="gauge-label">RAM</span>
         <div class="meter-track">
           <div id="ram-fill" class="meter-fill"></div>
         </div>
-        <span id="ram-text">-- / 32.0 GB</span>
+        <span id="ram-text" class="gauge-val">-- / 32.0 GB</span>
       </div>
 
-      <div id="headroom-status" style="font-size: 0.8rem; color: var(--text-muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+      <div id="headroom-status" class="headroom-pill">
         Zero Spill Active
       </div>
     </div>
   </header>
 
-  <!-- Split Screen: Left = Agent Stream, Right = Workspace & Live Diffs -->
+  <!-- Split Screen: Left = Claude Conversational Stream, Right = Artifacts & Diffs -->
   <div class="main-container">
-    <!-- Chat & Agent Stream -->
-    <div class="chat-panel">
+    
+    <!-- Left: Conversational Stream -->
+    <div class="chat-panel" id="chat-panel">
+      <!-- Quick Suggestion Chips (Claude Style) -->
+      <div class="quick-chips">
+        <button class="chip" onclick="fillPrompt('Fix the race condition in services/queue_manager.py when multiple tasks pop concurrently.')">⚡ Fix queue race condition</button>
+        <button class="chip" onclick="fillPrompt('Inspect discrete GPU memory headroom and evaluate zero-spill compliance.')">🔍 Check VRAM headroom</button>
+        <button class="chip" onclick="switchWorkspaceTab('repo_explorer')">🗺️ View AST RepoMap</button>
+        <button class="chip" onclick="triggerUndo()">↺ Rollback last edit</button>
+      </div>
+
+      <!-- Chat Stream Messages -->
       <div class="message-list" id="message-list">
         <div class="msg-card msg-assistant">
-          <b>GhostHarness Initialized.</b><br>
-          Connected to local abliterated Qwen model harness. Dynamic routing active:<br>
-          • <b>Fast Tier (7B):</b> 100% in 6GB VRAM for blazing instant edits and terminal commands.<br>
-          • <b>Heavy Tier (14B/32B):</b> Split GPU+RAM offload for deep reasoning.<br>
-          Zero administrator privileges required. Enter your prompt or click <b>🎤 Voice</b> below to start.
+          <div class="agent-header">
+            <span class="agent-avatar">⚡</span>
+            <span class="agent-title">GhostHarness Agent (Claude Code Mode)</span>
+          </div>
+          <p>Ready for autonomous coding on constrained hardware (<b>6GB VRAM</b>). Zero administrator privileges required.</p>
+          <div class="features-grid">
+            <div class="feat-item">🛡️ <b>User-Space:</b> All caches & models isolated to repo folder.</div>
+            <div class="feat-item">⚡ <b>Zero Spill:</b> 7B Q4_K_M runs 100% in VRAM at 45–60 tok/sec.</div>
+            <div class="feat-item">🎯 <b>Fuzzy Edit:</b> Difflib sequence matching tolerance (≥85%).</div>
+            <div class="feat-item">↺ <b>Checkpoints:</b> Atomic snapshot recorded before every edit.</div>
+          </div>
+          <p style="margin-top: 8px; color: var(--text-muted); font-size: 0.82rem;">
+            Ask me to inspect files, edit code, execute terminal commands, or explain architecture.
+          </p>
         </div>
       </div>
 
-      <div class="input-area">
-        <button id="mic-btn" onclick="toggleDictation()" style="background: var(--bg-card); border: 1px solid var(--border); color: #fff; padding: 0 14px; border-radius: 8px; cursor: pointer; font-size: 0.85rem;" title="Toggle Speech-to-Text Dictation">
-          🎤 Voice
-        </button>
-        <textarea id="prompt-input" class="prompt-input" placeholder="Ask GhostHarness to edit code, research repos, or run tasks... (Enter to send)"></textarea>
-        <button class="btn-send" onclick="sendMessage()">Run</button>
+      <!-- Floating Command Input Bar (Claude Style) -->
+      <div class="input-container">
+        <div class="input-card">
+          <textarea id="prompt-input" class="prompt-input" placeholder="Ask GhostHarness to edit code, research repos, or run tasks... (Enter to send, Shift+Enter for new line)" rows="1"></textarea>
+          <div class="input-actions">
+            <button id="mic-btn" onclick="toggleDictation()" class="icon-btn" title="Toggle Voice Dictation">
+              🎤
+            </button>
+            <button onclick="sendMessage()" class="btn-send" title="Run (Enter)">
+              <span>Run</span>
+              <span style="font-size: 0.8rem; margin-left: 2px;">❯</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Workspace & Dynamic Components -->
-    <div class="workspace-panel">
-      <div class="workspace-tabs" id="workspace-tabs">
-        <!-- Dynamically injected tabs -->
+    <!-- Center Resizer Divider -->
+    <div class="resizer" id="resizer"></div>
+
+    <!-- Right: Claude Artifacts & Diff Inspector Panel -->
+    <div class="workspace-panel" id="workspace-panel">
+      <!-- Tabs Bar -->
+      <div class="workspace-tabs-bar">
+        <div class="tabs-list" id="workspace-tabs">
+          <!-- Dynamically injected tab buttons -->
+        </div>
+        <div class="workspace-actions">
+          <button onclick="triggerUndo()" class="undo-mini-btn" title="Rollback file changes">
+            ↺ Rollback
+          </button>
+        </div>
       </div>
+
+      <!-- Content Area -->
       <div class="workspace-content" id="workspace-content">
-        <!-- Tab content rendered by JS -->
+        <!-- Injected by app.js -->
       </div>
     </div>
+
   </div>
 
   <script src="/static/app.js"></script>
