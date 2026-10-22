@@ -71,7 +71,7 @@ async def run_tui():
         console.print("  [dim]Tip: Start LM Studio or llama-server on port 1234 or 8080[/dim]")
 
     display_telemetry()
-    console.print("\n[dim]Commands: /gui (launch web workspace), /undo (revert last edit), /map (show AST tree), /vram, /model <name>, /exit[/dim]\n")
+    console.print("\n[dim]Commands: /help, /gui, /undo, /map, /vram, /kb <q>, /doctor, /stress, /model, /exit[/dim]\n")
 
     while True:
         try:
@@ -105,6 +105,52 @@ async def run_tui():
                 console.print(f"[bold green]Starting Visual Workspace Web GUI on http://127.0.0.1:{settings.web_port}...[/bold green]")
                 from web.server import start_server
                 start_server(port=settings.web_port)
+                continue
+
+            if prompt == "/clear":
+                console.clear()
+                print_banner()
+                continue
+
+            if prompt == "/help":
+                table = Table(title="GhostHarness Interactive Commands", border_style="cyan")
+                table.add_column("Command", style="bold cyan")
+                table.add_column("Description")
+                table.add_row("/gui", "Launch split-screen Visual Web GUI in browser")
+                table.add_row("/undo", "Rollback most recent file edit (/undo checkpoint)")
+                table.add_row("/map", "Display AST semantic codebase symbol tree")
+                table.add_row("/vram", "Display live GPU discrete VRAM & RAM telemetry")
+                table.add_row("/kb <query>", "Query local SQLite FTS5 BM25 knowledge base")
+                table.add_row("/doctor", "Run system diagnostic verification")
+                table.add_row("/stress", "Run 20-point intense test suite")
+                table.add_row("/model [name]", "Override active model or reset to dynamic router")
+                table.add_row("/clear", "Clear terminal screen")
+                table.add_row("/exit", "Exit session")
+                console.print(table)
+                continue
+
+            if prompt.startswith("/kb"):
+                from core.knowledge_base import knowledge_base
+                query = prompt[3:].strip()
+                if not query:
+                    console.print("[dim]Usage: /kb <search terms>[/dim]")
+                else:
+                    matches = knowledge_base.search(query, max_results=5)
+                    console.print(f"\n[bold cyan]Knowledge Base Search:[/bold cyan] '{query}' ({len(matches)} matches)")
+                    for m in matches:
+                        console.print(f"  • [bold white]{m['title']}[/bold white] [dim]({m['filepath']})[/dim]")
+                        console.print(f"    [dim]{m['snippet']}[/dim]")
+                    console.print("\n")
+                continue
+
+            if prompt == "/doctor":
+                import subprocess
+                subprocess.run([sys.executable, str(PROJECT_ROOT / "tests" / "system_test.py")])
+                continue
+
+            if prompt == "/stress":
+                import subprocess
+                subprocess.run([sys.executable, str(PROJECT_ROOT / "tests" / "intense_test_suite.py")])
                 continue
 
             if prompt.startswith("/model"):

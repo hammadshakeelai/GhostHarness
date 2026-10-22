@@ -47,6 +47,14 @@ if "%1"=="--init" (
     python -m core.cli --gui
 ) else if "%1"=="--test" (
     python tests\system_test.py
+) else if "%1"=="--doctor" (
+    python tests\system_test.py
+) else if "%1"=="--stress" (
+    python tests\intense_test_suite.py
+) else if "%1"=="--kb" (
+    python core\knowledge_base.py
+) else if "%1"=="--eval" (
+    python eval\benchmark.py
 ) else (
     REM Default to interactive Claude Code style terminal
     python -m core.cli %*

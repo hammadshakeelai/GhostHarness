@@ -41,6 +41,14 @@ export PYTHONPATH="$DIR:$PYTHONPATH"
 if [ "$1" == "--gui" ]; then
     echo "[*] Launching Visual Workspace Web GUI..."
     .venv/bin/python -m core.cli --gui
+elif [ "$1" == "--test" ] || [ "$1" == "--doctor" ]; then
+    .venv/bin/python tests/system_test.py
+elif [ "$1" == "--stress" ]; then
+    .venv/bin/python tests/intense_test_suite.py
+elif [ "$1" == "--kb" ]; then
+    .venv/bin/python core/knowledge_base.py
+elif [ "$1" == "--eval" ]; then
+    .venv/bin/python eval/benchmark.py
 else
     .venv/bin/python -m core.cli "$@"
 fi

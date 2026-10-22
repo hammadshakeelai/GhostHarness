@@ -141,6 +141,15 @@ scripts\launch.bat --gui
 
 :: To verify system hardware and zero-admin compliance:
 scripts\launch.bat --test
+
+:: To run the 20-point intense stress test suite:
+scripts\launch.bat --stress
+
+:: To query or warm up the local FTS5 knowledge base:
+scripts\launch.bat --kb
+
+:: To run the before/after evaluation benchmark:
+scripts\launch.bat --eval
 ```
 
 ### 2. Linux / POSIX Terminal
@@ -151,8 +160,12 @@ chmod +x scripts/launch.sh
 # Start interactive Claude Code style terminal TUI
 ./scripts/launch.sh
 
-# Or start the Web GUI on http://127.0.0.1:8000
+# Or start the Web GUI on http://127.0.0.1:8765
 ./scripts/launch.sh --gui
+
+# Run 20-point intense stress test suite
+./scripts/launch.sh --stress
+```
 ```
 
 ### 3. 100% Offline USB Drive Setup
