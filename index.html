@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GhostHarness — Sovereign AI Agent & Visual Workspace Demo</title>
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+</head>
+<body>
+  <!-- Top Demo Banner Ribbon -->
+  <div class="demo-ribbon">
+    <span>🚀 <b>GhostHarness Live Web GUI Demo</b> — Running in client simulation mode for GitHub Pages</span>
+    <div class="ribbon-links">
+      <a href="https://github.com/hammadshakeelai/GhostHarness" target="_blank" class="ribbon-btn">★ Star on GitHub</a>
+      <a href="https://github.com/hammadshakeelai/GhostHarness#readme" target="_blank" class="ribbon-btn secondary">📖 Documentation</a>
+    </div>
+  </div>
+
+  <!-- Header with Hardware Telemetry and Actions -->
+  <header>
+    <div class="brand">
+      <span class="brand-badge">SOVEREIGN</span>
+      <span class="brand-title">GhostHarness</span>
+      <span id="backend-status" class="status-indicator">● llama-server :8080 (Qwen 2.5 Coder 7B)</span>
+    </div>
+
+    <div class="telemetry-bar">
+      <!-- Model Selector -->
+      <select id="model-select" onchange="onModelChange(this)" class="custom-select" title="Active Model Architecture">
+        <option value="auto">⚡ Auto Router (7B pure VRAM / 14B hybrid)</option>
+        <option value="qwen2.5-coder-7b-instruct">⚡ Force 7B (100% 6GB VRAM, 55 t/s)</option>
+        <option value="qwen2.5-coder-14b-instruct">🧠 Force 14B (Hybrid 26L GPU + 32GB RAM)</option>
+      </select>
+
+      <!-- Undo Button -->
+      <button onclick="triggerUndo()" class="action-btn" title="Revert latest file modification snapshot">
+        ↺ Undo
+      </button>
+
+      <!-- VRAM Gauge -->
+      <div class="gauge-pill" title="Discrete GPU Dedicated VRAM (Zero Spill Guard)">
+        <span class="gauge-label">VRAM</span>
+        <div class="meter-track">
+          <div id="vram-fill" class="meter-fill" style="width: 72%;"></div>
+        </div>
+        <span id="vram-text" class="gauge-val">4.3 / 6.0 GB</span>
+      </div>
+
+      <!-- RAM Gauge -->
+      <div class="gauge-pill" title="Host System RAM">
+        <span class="gauge-label">RAM</span>
+        <div class="meter-track">
+          <div id="ram-fill" class="meter-fill" style="width: 38%;"></div>
+        </div>
+        <span id="ram-text" class="gauge-val">12.4 / 32.0 GB</span>
+      </div>
+
+      <div id="headroom-status" class="headroom-badge">
+        OPTIMAL: ZERO-SPILL
+      </div>
+    </div>
+  </header>
+
+  <!-- Split Screen: Left = Agent Stream, Right = Workspace & Live Diffs -->
+  <div class="main-container">
+    <!-- Chat & Agent Stream -->
+    <div class="chat-panel">
+      <!-- Interactive Quick Prompt Chips -->
+      <div class="quick-prompts">
+        <span class="chip-label">Try interactive demo prompts:</span>
+        <button class="prompt-chip" onclick="runDemoPrompt('queue')">⚡ Fix queue race condition</button>
+        <button class="prompt-chip" onclick="runDemoPrompt('vram')">🔍 Check VRAM headroom</button>
+        <button class="prompt-chip" onclick="runDemoPrompt('repomap')">🗺️ View AST RepoMap</button>
+        <button class="prompt-chip" onclick="runDemoPrompt('benchmark')">📊 Run benchmark test</button>
+      </div>
+
+      <div class="message-list" id="message-list">
+        <div class="msg-card msg-assistant">
+          <div class="agent-header">
+            <span class="agent-avatar">⚡</span>
+            <b>GhostHarness Initialized (Local Sovereign Lab)</b>
+          </div>
+          <p>Connected to abliterated <b>Qwen 2.5 Coder 7B Instruct (Q4_K_M)</b> running 100% in 6GB VRAM.</p>
+          <div class="features-summary">
+            <div>🛡️ <b>Zero Admin Privileges:</b> Runs completely in user-space on campus PCs.</div>
+            <div>⚡ <b>Zero-Spill Guard:</b> 4.3 GB weights + 850 MB KV cache = 0% spill into host RAM.</div>
+            <div>🗺️ <b>AST Semantic RepoMap:</b> Symbol hierarchy compressed to token budget.</div>
+            <div>↺ <b>Instant Rollback:</b> Atomic snapshots recorded before every disk write.</div>
+          </div>
+          <p style="margin-top: 10px; color: var(--text-muted); font-size: 0.82rem;">
+            Click any prompt chip above or type a command below to preview autonomous agentic tool execution.
+          </p>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <button id="mic-btn" onclick="toggleDictation()" class="mic-button" title="Toggle Speech-to-Text Dictation">
+          🎤 Voice
+        </button>
+        <textarea id="prompt-input" class="prompt-input" placeholder="Ask GhostHarness to edit code, research repos, or run tasks... (Enter to send)"></textarea>
+        <button class="btn-send" onclick="sendMessage()">Run</button>
+      </div>
+    </div>
+
+    <!-- Workspace & Dynamic Components -->
+    <div class="workspace-panel">
+      <div class="workspace-tabs" id="workspace-tabs">
+        <button class="tab-btn active" onclick="switchTab('diff_viewer')">📝 Diff Viewer</button>
+        <button class="tab-btn" onclick="switchTab('repomap')">🗺️ AST RepoMap</button>
+        <button class="tab-btn" onclick="switchTab('checkpoints')">↺ Checkpoints</button>
+        <button class="tab-btn" onclick="switchTab('telemetry')">📊 Hardware Monitor</button>
+      </div>
+      <div class="workspace-content" id="workspace-content">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
