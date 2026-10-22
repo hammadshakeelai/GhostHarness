@@ -112,6 +112,12 @@ Try the interactive demo deployed on GitHub Pages:
 
 ### 👉 **[https://hammadshakeelai.github.io/GhostHarness/](https://hammadshakeelai.github.io/GhostHarness/)**
 
+<div align="center" style="margin: 16px 0;">
+  <a href="https://hammadshakeelai.github.io/GhostHarness/">
+    <img src="assets/gui_screenshot.png" alt="GhostHarness Visual Workspace Screenshot" width="100%" style="border-radius: 8px; border: 1px solid #242f4b;" />
+  </a>
+</div>
+
 Features simulated in the web preview:
 - Live real-time discrete VRAM / RAM hardware gauges
 - Split-screen workspace with unified syntax diff viewer
