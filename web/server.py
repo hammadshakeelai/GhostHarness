@@ -164,9 +164,30 @@ async def get_mission_status():
         "report_markdown": report_markdown
     }
 
-def start_server(host: str = "127.0.0.1", port: int = 8765):
+async def serve_server(host: str = "127.0.0.1", port: int = 8765):
+    """Serve the FastAPI application asynchronously using an existing event loop."""
     import uvicorn
-    uvicorn.run(app, host=host, port=port, log_level="info")
+    config = uvicorn.Config(app, host=host, port=port, log_level="info")
+    server = uvicorn.Server(config)
+    await server.serve()
+
+def start_server(host: str = "127.0.0.1", port: int = 8765):
+    """Start the web server. If called from an active event loop, runs in a daemon thread."""
+    import uvicorn
+    import threading
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop is not None and loop.is_running():
+        config = uvicorn.Config(app, host=host, port=port, log_level="info")
+        server = uvicorn.Server(config)
+        thread = threading.Thread(target=server.run, daemon=True)
+        thread.start()
+        return thread
+    else:
+        uvicorn.run(app, host=host, port=port, log_level="info")
 
 if __name__ == "__main__":
     start_server()

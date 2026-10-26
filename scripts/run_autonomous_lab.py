@@ -231,11 +231,11 @@ reports, logs, and databases are preserved right inside the repo!
     start_server(host="127.0.0.1", port=port)
 
 
-async def main():
+async def run_pipeline():
     print_master_banner()
     start_total_time = time.time()
     
-    # Execute 5 Phases Sequentially
+    # Execute 4 Phases Sequentially
     await phase_1_setup_and_warmup()
     await phase_2_pre_tuning_acceptance_and_baseline()
     phase_3_fine_tuning()
@@ -243,13 +243,18 @@ async def main():
     
     elapsed = round(time.time() - start_total_time, 2)
     console.print(f"[bold cyan]⏱ Total Autonomous Pipeline Run Time: {elapsed} seconds[/bold cyan]\n")
+
+
+def main():
+    # Run Phases 1-4 to completion and cleanly shut down the event loop
+    asyncio.run(run_pipeline())
     
-    # Phase 5: Launch GUI
+    # Phase 5: Launch GUI synchronously on main thread (avoids asyncio.run conflict with uvicorn)
     phase_5_launch_visual_web_gui()
 
 
 if __name__ == "__main__":
     try:
-        asyncio.run(main())
+        main()
     except KeyboardInterrupt:
         console.print("\n[dim]Autonomous lab session stopped by user.[/dim]")
