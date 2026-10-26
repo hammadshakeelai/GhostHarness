@@ -15,6 +15,7 @@ import sys
 import time
 import json
 import socket
+import shutil
 import asyncio
 import webbrowser
 import subprocess
@@ -92,9 +93,14 @@ async def phase_1_setup_and_warmup():
     console.print(f"  [bold green]✔[/bold green] Indexed [bold white]{indexed}[/bold white] codebase symbols, modules, and architecture docs into [dim].ghost_knowledge.db[/dim]")
     
     # Check bundled standalone inference engine
-    bin_exe = PROJECT_ROOT / "bin" / "llama-server.exe"
+    bin_paths = [
+        PROJECT_ROOT / "bin" / "llama-server.exe",
+        PROJECT_ROOT / "bin" / "llama-server",
+        Path(shutil.which("llama-server") or "")
+    ]
+    bin_exe = next((bp for bp in bin_paths if bp.is_file()), None)
     model_gguf = PROJECT_ROOT / "models" / "qwen2.5-coder-7b-instruct-abliterated-q4_k_m.gguf"
-    if bin_exe.is_file():
+    if bin_exe and bin_exe.is_file():
         console.print(f"  [bold green]✔[/bold green] Standalone inference engine verified: [bold white]{bin_exe.name}[/bold white]")
     if model_gguf.is_file():
         console.print(f"  [bold green]✔[/bold green] Abliterated 7B model verified: [bold white]{model_gguf.name}[/bold white] ({model_gguf.stat().st_size / (1024**3):.2f} GB)")
@@ -179,10 +185,15 @@ def phase_5_launch_visual_web_gui():
     
     # Check if bundled llama-server needs to be started
     if not is_port_in_use(8080) and not is_port_in_use(1234) and not is_port_in_use(11434):
-        bin_exe = PROJECT_ROOT / "bin" / "llama-server.exe"
+        bin_paths = [
+            PROJECT_ROOT / "bin" / "llama-server.exe",
+            PROJECT_ROOT / "bin" / "llama-server",
+            Path(shutil.which("llama-server") or "")
+        ]
+        bin_exe = next((bp for bp in bin_paths if bp.is_file()), None)
         model_gguf = PROJECT_ROOT / "models" / "qwen2.5-coder-7b-instruct-abliterated-q4_k_m.gguf"
-        if bin_exe.is_file() and model_gguf.is_file():
-            console.print("[*] Spawning bundled standalone llama-server on port 8080...")
+        if bin_exe and bin_exe.is_file() and model_gguf.is_file():
+            console.print(f"[*] Spawning bundled standalone {bin_exe.name} on port 8080...")
             cmd = [
                 str(bin_exe),
                 "-m", str(model_gguf),
